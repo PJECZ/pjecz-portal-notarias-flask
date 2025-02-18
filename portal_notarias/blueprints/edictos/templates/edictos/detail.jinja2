@@ -22,9 +22,9 @@
         {% if current_user.can_insert('EDICTOS') and current_user.autoridad_id == edicto.autoridad_id %}
             {{ topbar.button_upload('Subir', url_for('edictos.new')) }}
         {% endif %}
-        {# {% if current_user.can_admin('EDICTOS') or (current_user.can_edit('EDICTOS') and edicto.autoridad_id == current_user.autoridad_id) %}
+        {% if current_user.can_admin('EDICTOS') or (current_user.can_edit('EDICTOS') and edicto.autoridad_id == current_user.autoridad_id) %}
             {{ topbar.button_edit('Editar', url_for('edictos.edit', edicto_id=edicto.id)) }}
-        {% endif %} #}
+        {% endif %}
     {% endcall %}
 {% endblock %}
 
@@ -44,9 +44,14 @@
             </div>
         </div>
     {% endcall %}
+    {% call detail.card() %}
+        <object data="{{ url_for('edictos.view_file_pdf', edicto_id=edicto.id) }}" type="application/pdf" width="100%" height="600px">
+            <p class="mb-0">El navegador no puede mostrar el archivo PDF o no existe en el depósito.</p>
+        </object>
+    {% endcall %}
     {# Listado de acuses #}
     {% if current_user.can_view('EDICTOS ACUSES') %}
-        {% call detail.card('Republicación de Edictos' ) %}
+        {% call detail.card('Publicaciones pendientes' ) %}
             <table id="edictos_acuses_datatable" class="table display nowrap" style="width:100%">
                 <thead>
                     <tr>

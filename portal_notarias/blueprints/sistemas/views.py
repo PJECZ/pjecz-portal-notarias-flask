@@ -2,11 +2,12 @@
 Sistemas
 """
 
-from datetime import datetime, timezone
+from datetime import datetime
 
 from flask import Blueprint, redirect, render_template, send_from_directory
 from flask_login import current_user
 
+from portal_notarias.blueprints.autoridades.models import Autoridad
 from portal_notarias.blueprints.edictos.models import Edicto
 from portal_notarias.extensions import database
 from sqlalchemy import func
@@ -25,13 +26,17 @@ def start():
         # Obtener los roles del usuario
         obtener_roles = set(current_user.get_roles())
 
+        # Determinar si el usuario es notario
+        es_notario = "NOTARIA" in obtener_roles
+
         # Calcular fecha actual
-        fecha_actual = datetime.now(timezone.utc).date()
+        fecha_actual = datetime.today().strftime("%d-%m-%Y")
 
         print(fecha_actual)
         # Consultar las cantidades de EDICTOS publicados en la fecha actual
-        consulta = (
+        edictos_usuario = (
             database.session.query(
+                Edicto.id,
                 Edicto.fecha,
                 Edicto.descripcion,
                 func.count(Edicto.id).label("cantidad"),
@@ -39,17 +44,43 @@ def start():
             .filter(func.date(Edicto.fecha) == fecha_actual)  # compara fechas
             .filter(Edicto.estatus == "A")
             .filter(Edicto.autoridad_id == current_user.autoridad.id)
-            .group_by(Edicto.fecha, Edicto.descripcion)
+            .group_by(Edicto.id, Edicto.fecha, Edicto.descripcion)
             .order_by(Edicto.descripcion)
             .all()
         )
 
-        # Crear un listado de tuplas con el nombre del área y la cantidad de procedimientos
-        cantidad_edictos_por_fecha = [(fecha, descripcion, cantidad) for fecha, descripcion, cantidad in consulta]
+        # Mostrar todas las publicaciones
+        edictos_dia = (
+            database.session.query(
+                Edicto.id,
+                Edicto.fecha,
+                Edicto.descripcion,
+                Autoridad.clave,  # obtenemos la clave de la autoridad
+                func.count(Edicto.id).label("cantidad"),
+            )
+            .join(Autoridad, Edicto.autoridad_id == Autoridad.id)  # Hacer join con la tabla de autoridad
+            .filter(func.date(Edicto.fecha) == fecha_actual)
+            .filter(Edicto.estatus == "A")
+            .group_by(Edicto.id, Edicto.fecha, Edicto.descripcion, Autoridad.clave)
+            .order_by(Edicto.descripcion)
+            .all()
+        )
+
+        # Convertir a listas de tuplas con el nombre del área y la cantidad de procedimientos
+        edictos_usuarios_lista = [
+            (edicto_id, fecha, descripcion, cantidad) for edicto_id, fecha, descripcion, cantidad in edictos_usuario
+        ]
+        edictos_dia_lista = [
+            (edicto_id, fecha, descripcion, autoridad_clave, cantidad)
+            for edicto_id, fecha, descripcion, autoridad_clave, cantidad in edictos_dia
+        ]
         return render_template(
             "sistemas/start.jinja2",
             mostrar_notaria=obtener_roles.intersection(ROLES_EDICTOS_NOTARIAS),
-            cantidad_edictos_por_fecha=cantidad_edictos_por_fecha,
+            es_notario=es_notario,  # determina si el usuario es notario
+            edictos_usuarios_lista=edictos_usuarios_lista,  # publicacion del usuario
+            edictos_dia_lista=edictos_dia_lista,  # publicacion todos
+            fecha_actual=fecha_actual,
             titulo="Publicaciones de Edictos a la fecha actual",
         )
 

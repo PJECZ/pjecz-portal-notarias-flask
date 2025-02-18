@@ -55,7 +55,6 @@
                 <tr>
                     <th>Fechas</th>
                     <th>Descripción</th>
-                    <th>Enlace público</th>
                 </tr>
             </thead>
         </table>
@@ -74,7 +73,6 @@
         configDTEdictos['columns'] = [
             { data: "fecha" },
             { data: "detalle" },
-            { data: "archivo" }
         ];
         configDTEdictos['columnDefs'] = [
             {
@@ -88,7 +86,7 @@
                 targets: 1, // descripcion
                 data: null,
                 render: function(data, type, row, meta) {
-                    var descripcion = data.descripcion.length > 32 ? data.descripcion.substr(0, 32) + '…' : data.descripcion;
+                    var descripcion = data.descripcion.length > 80 ? data.descripcion.substr(0, 80) + '…' : data.descripcion;
                     var content = data.url ? '<a href="' + data.url + '">' + descripcion + '</a>' : descripcion;
                     if (data.url) {
                         return '<span title="' + descripcion + '">' + content + '</span>';
@@ -97,13 +95,13 @@
                     }
                 }
             },
-            {
+            /*{
                 targets: 2, // archivo
                 data: null,
                 render: function(data, type, row, meta) {
                     return '<a href="' + data.descargar_url + '" target="_blank">PDF</a>';
                 }
-            }
+            }*/
         ];
         // Filtros Edictos
         const filtrosEdictos = new FiltrosDataTable('#edictos_datatable', configDTEdictos);

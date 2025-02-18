@@ -6,11 +6,21 @@ from datetime import datetime, date, timedelta
 import json
 from urllib.parse import quote
 
-from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, flash, make_response, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from werkzeug.datastructures import CombinedMultiDict
+from werkzeug.exceptions import NotFound
 
 from lib.datatables import get_datatable_parameters, output_datatable_json
+from lib.exceptions import (
+    MyBucketNotFoundError,
+    MyFilenameError,
+    MyFileNotFoundError,
+    MyMissingConfigurationError,
+    MyNotAllowedExtensionError,
+    MyNotValidParamError,
+    MyUnknownExtensionError,
+)
 from lib.exceptions import MyAnyError
 from lib.google_cloud_storage import get_blob_name_from_url, get_media_type_from_filename, get_file_from_gcs
 from lib.safe_string import safe_expediente, safe_message, safe_numero_publicacion, safe_string
@@ -24,7 +34,7 @@ from portal_notarias.blueprints.distritos.models import Distrito
 from portal_notarias.blueprints.modulos.models import Modulo
 from portal_notarias.blueprints.permisos.models import Permiso
 from portal_notarias.blueprints.edictos.models import Edicto
-from portal_notarias.blueprints.edictos.forms import EdictoNewForm, EdictoNewAutoridadForm
+from portal_notarias.blueprints.edictos.forms import EdictoNewForm, EdictoNewAutoridadForm, EdictoEditForm
 from portal_notarias.blueprints.edictos_acuses.models import EdictoAcuse
 
 edictos = Blueprint("edictos", __name__, template_folder="templates")
@@ -621,3 +631,47 @@ def new_for_autoridad(autoridad_id):
     form.autoridad.data = autoridad.descripcion
     form.fecha.data = hoy
     return render_template("edictos/new_for_autoridad.jinja2", form=form, autoridad=autoridad)
+
+
+@edictos.route("/edictos/edicion/<int:edicto_id>", methods=["GET", "POST"])
+@permission_required(MODULO, Permiso.MODIFICAR)
+def edit(edicto_id):
+    """Editar Edicto"""
+    edicto = Edicto.query.get_or_404(edicto_id)
+    form = EdictoEditForm()
+    if form.validate_on_submit():
+        edicto.descripcion = safe_string(form.descripcion.data)
+        edicto.save()
+        bitacora = Bitacora(
+            modulo=Modulo.query.filter_by(nombre=MODULO).first(),
+            usuario=current_user,
+            descripcion=safe_message(f"Editado Edicto {edicto.descripcion}"),
+            url=url_for("edictos.detail", edicto_id=edicto.id),
+        )
+        bitacora.save()
+        flash(bitacora.descripcion, "success")
+        return redirect(bitacora.url)
+    form.descripcion.data = edicto.descripcion
+    return render_template("edictos/edit.jinja2", form=form, edicto=edicto)
+
+
+@edictos.route("/edictos/ver_archivo_pdf/<int:edicto_id>")
+def view_file_pdf(edicto_id):
+    """Ver archivo PDF de Edicto para insertarlo en un iframe en el detalle"""
+
+    # Consultar
+    edicto = Edicto.query.get_or_404(edicto_id)
+
+    # Obtener el contenido del archivo
+    try:
+        archivo = get_file_from_gcs(
+            bucket_name=current_app.config["CLOUD_STORAGE_DEPOSITO_EDICTOS"],
+            blob_name=get_blob_name_from_url(edicto.url),
+        )
+    except (MyBucketNotFoundError, MyFileNotFoundError, MyNotValidParamError) as error:
+        raise NotFound("No se encontró el archivo.") from error
+
+    # Entregar el archivo
+    response = make_response(archivo)
+    response.headers["Content-Type"] = "application/pdf"
+    return response

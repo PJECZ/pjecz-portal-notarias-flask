@@ -16,20 +16,12 @@
         <div class="container">
             <div class="row">
                 {% if mostrar_notaria %}
-                    <!-- Cantidades de procedimientos por áreas -->
-                    {% call card.container_row() %}
-                        {% for id, descripcion, cantidad in cantidad_edictos_por_fecha %}
-                            {% call card.col_md(3) %}
-                                {% call card.card(descripcion) %}
-                                    {% call card.card_body() %}
-                                        {{ card.button_md(
-                                            label= 'Ver Edictos',
-                                            url=url_for('edictos.detail') + '?edicto_id=' + edicto.id) }}
-                                    {% endcall %}
-                                {% endcall %}
-                            {% endcall %}
-                        {% endfor %}
-                    {% endcall %}
+                    <div class="col-md-6 col-sm-12 mb-2 mt-5">
+                        <p>
+                            Este espacio está diseñado para que las notarías puedan realizar de manera fácil y eficiente la publicación y republicación de sus edictos para poder gestionarlas.                     
+                        </p>
+                        <a href="{{ url_for('edictos.list_active') }}" class="btn d-grid gap-2 btn-primary btn-xl btn-tickets ml-auto">Subir Edicto</a>
+                    </div>
                 {% else %}
                     <div class="col-md-6 col-sm-12 mb-2">
                         <img src="https://storage.googleapis.com/pjecz-informatica/static/images/no-entrar-portal-notarias.jpg" class="img-fluid mb-2">
@@ -42,22 +34,52 @@
             </div>
         </div>
     {% endcall %}
-    <!-- Diseño publicacion como periodico -->
-
-    <main class="container my-4">
-        <div class="row">
-            
-                    <div class="col-md-6 col-sm-12 mb-2">
-                        <img src="https://storage.googleapis.com/pjecz-informatica/static/images/inicio_notaria.png" class="img-fluid mb-2">
-                    </div>
-                    <div class="col-md-6 col-sm-12 mb-2 mt-5">
-                        <p>
-                            Este espacio está diseñado para que las notarías puedan realizar de manera fácil y eficiente la publicación y republicación de sus edictos para poder gestionarlas.                     
-                        </p>
-                        <a href="{{ url_for('edictos.list_active') }}" class="btn d-grid gap-2 btn-primary btn-xl btn-tickets ml-auto">Subir Edicto</a>
-                    </div>
-        </div>
-    </main>
+    {% if es_notario %}
+        <!-- Publicaciones de la propia notaria -->
+        {% call detail.card(title='Edictos publicados ' + fecha_actual) %}
+            {% if edictos_usuarios_lista %}
+                {% call card.container_row() %}
+                    {% for edicto_id, fecha, descripcion, cantidad in edictos_usuarios_lista %}
+                        {% call card.col_md(3) %}
+                            {% call card.card(current_user.autoridad.clave) %}
+                                {% call card.card_body() %}
+                                    {{descripcion}}
+                                    {{ card.button_md(
+                                        label= 'Ver Edictos',
+                                        url=url_for('edictos.detail', edicto_id=edicto_id)) 
+                                    }}
+                                {% endcall %}
+                            {% endcall %}
+                        {% endcall %}
+                    {% endfor %}
+                {% endcall %}
+            {% else %}
+                <div class="col-12 text-center">
+                    <p class="fw-bold text-danger">No hubo publicaciones para la fecha de hoy</p>
+                </div>
+            {% endif %}
+        {% endcall %}
+    {% endif %}
+    <!-- Publicaciones de todas las notarias -->
+    {% call detail.card(title='Edictos publicados de todas las notarias ' + fecha_actual ) %}
+        {% if mostrar_notaria %}
+            {% call card.container_row() %}
+                {% for edicto_id, fecha, descripcion, autoridad_clave, cantidad in edictos_dia_lista %}
+                    {% call card.col_md(3) %}
+                        {% call card.card(autoridad_clave) %}
+                            {% call card.card_body() %}
+                                {{descripcion}}
+                                {{ card.button_md(
+                                    label= 'Ver Edictos',
+                                    url=url_for('edictos.detail', edicto_id=edicto_id))
+                                }}
+                            {% endcall %}
+                        {% endcall %}
+                    {% endcall %}
+                {% endfor %}
+            {% endcall %}
+        {% endif %}
+    {% endcall %}
     <!-- End  -->
 {% endblock %}
 

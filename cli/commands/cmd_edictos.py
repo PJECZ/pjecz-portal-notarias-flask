@@ -31,19 +31,53 @@ def cli():
 @click.argument("edicto_id", type=int)
 @click.argument("nueva_fecha", type=str)
 def republicacion_edictos(edicto_id: int, nueva_fecha: str):
-    """Republicar un edicto en una nueva fecha"""
+    """Muestra las fechas de republicación de un edicto y permite agregar una nueva"""
+
+    # Busca el edicto original
+    edicto_original = database.session.query(Edicto).filter_by(id=edicto_id).first()
+    if not edicto_original:
+        click.echo(f"Error: No se encontró el edicto con ID {edicto_id}")
+        sys.exit(1)
+
     try:
         # Convertir la fecha proporcionada
         nueva_fecha_dt = datetime.strptime(nueva_fecha, "%Y-%m-%d")
-        # Validar si ya existe una publicacion en esa fecha
+
+        # Validar si ya existe una publicacion en esa fecha en edictos_acuses
         republicacion_existente = (
-            database.session.query(EdictoAcuse).filter_by(edicto_id=edicto_id, fecha=nueva_fecha_dt).first()
+            database.session.query(EdictoAcuse)
+            .filter_by(
+                id=edicto_id,
+                fecha=nueva_fecha_dt,
+            )
+            .first()
         )
         if republicacion_existente:
             click.echo(f"Error: Ya existe una republicación para el edicto {edicto_id} en la fecha {nueva_fecha}.")
             sys.exit(1)
-        # Realizar la tarea de republicación
-        mensaje = republicacion_edictos_task(edicto_id, nueva_fecha_dt)
+
+        # Agregar la nueva republicacion en edictos_acuses
+        nueva_republicacion = EdictoAcuse(edicto_id=edicto_id, fecha=nueva_fecha_dt)
+        database.session.add(nueva_republicacion)
+
+        # Crear un nuevo edicto para la republicacion
+        nuevo_edicto = Edicto(
+            autoridad_id=edicto_original.autoridad_id,
+            fecha=nueva_fecha_dt,  # la fecha nueva de republicacion
+            descripcion=edicto_original.descripcion,
+            expediente=edicto_original.expediente,
+            numero_publicacion=edicto_original.numero_publicacion,
+            archivo=edicto_original.archivo,
+            url=edicto_original.url,
+            acuse_num=edicto_original.acuse_num,
+            edicto_id_original=edicto_id,  # Hace referencia al edicto original
+        )
+
+        database.session.add(nuevo_edicto)
+        database.session.commit()
+
+        mensaje = f"Republicación creada con ID: {nuevo_edicto.id} y fecha {nuevo_edicto.fecha}."
+
     except ValueError:
         click.echo("Error: El formato de la fecha debe ser YYYY-MM-DD.")
         sys.exit(1)
