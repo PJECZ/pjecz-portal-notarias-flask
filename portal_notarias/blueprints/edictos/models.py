@@ -33,8 +33,8 @@ class Edicto(database.Model, UniversalMixin):
     url: Mapped[str] = mapped_column(String(512), default="", server_default="")
 
     # Columnas nuevas
-    acuse_num: Mapped[int] = mapped_column(default=0)
-    edicto_id_original: Mapped[int] = mapped_column(default=0)
+    acuse_num: Mapped[int] = mapped_column(default=0, server_default="0")
+    edicto_id_original: Mapped[int] = mapped_column(default=0, server_default="0")
 
     # Hijos
     edictos_acuses = relationship("EdictoAcuse", back_populates="edicto")

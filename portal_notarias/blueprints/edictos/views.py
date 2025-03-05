@@ -120,11 +120,10 @@ def datatable_json():
         if resultado.edicto_id_original == 0:
             # Si es igual a 0, agregar la URL al diccionario
             detalle["url"] = url_for("edictos.detail", edicto_id=resultado.id)
-
         data.append(
             {
                 "fecha": resultado.fecha.strftime("%Y-%m-%d %H:%M:%S"),
-                "detalle": detalle,  # Se agrega el diccionario 'detalle' como un elemento del nuevo diccionario.
+                "detalle": detalle,
                 "expediente": resultado.expediente,
                 "numero_publicacion": resultado.numero_publicacion,
                 "archivo": {
@@ -459,6 +458,7 @@ def new():
             fecha=hoy_date,
             acuse_num=acuse_num,
             descripcion=descripcion,
+            numero_publicacion="1",  # Primera publicación siempre es "1"
         )
         edicto.save()
 
@@ -472,9 +472,6 @@ def new():
                     fecha=fecha_acuse,
                 )
                 acuse.save()
-
-        print("hoy_date:", hoy_date)
-        print("fecha_acuse_date:", fecha_acuse)
 
         # Subir a Google Cloud Storage
         es_exitoso = True

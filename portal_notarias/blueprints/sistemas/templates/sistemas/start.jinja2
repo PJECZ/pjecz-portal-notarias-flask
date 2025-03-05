@@ -16,11 +16,16 @@
         <div class="container">
             <div class="row">
                 {% if mostrar_notaria %}
-                    <div class="col-md-6 col-sm-12 mb-2 mt-5">
+                    <div class="col col-sm-12 mb-2 mt-5">
+                        <p class="fw-bold">¡Bienvenidos y bienvenidas al personal notarial!</p>
                         <p>
-                            Este espacio está diseñado para que las notarías puedan realizar de manera fácil y eficiente la publicación y republicación de sus edictos para poder gestionarlas.                     
+                            {# Este espacio está diseñado para que las notarías puedan realizar de manera fácil y eficiente la publicación y republicación de sus edictos para poder gestionarlas.                      #}
+                            Este espacio ha sido diseñado pensando en ustedes, con el objetivo de simplificar y agilizar el proceso de publicación y republicación de edictos. 
+                            Aquí encontrarán una herramienta eficiente y fácil de usar para gestionar sus edictos de manera rápida y efectiva. 
+                            Nuestra plataforma les permite realizar un seguimiento del estado de sus edictos, todo en un entorno seguro y confidencial. 
+                            Les invitamos a explorar todas las funcionalidades que hemos desarrollado para facilitar su trabajo."
                         </p>
-                        <a href="{{ url_for('edictos.list_active') }}" class="btn d-grid gap-2 btn-primary btn-xl btn-tickets ml-auto">Subir Edicto</a>
+                        <a href="{{ url_for('edictos.new') }}" class="btn d-grid gap-2 btn-primary btn-xl btn-tickets ml-auto">Subir Edicto</a>
                     </div>
                 {% else %}
                     <div class="col-md-6 col-sm-12 mb-2">
@@ -36,7 +41,7 @@
     {% endcall %}
     {% if es_notario %}
         <!-- Publicaciones de la propia notaria -->
-        {% call detail.card(title='Edictos publicados ' + fecha_actual) %}
+        {% call detail.card(title='Edictos publicados hoy') %}
             {% if edictos_usuarios_lista %}
                 {% call card.container_row() %}
                     {% for edicto_id, fecha, descripcion, cantidad in edictos_usuarios_lista %}
@@ -55,31 +60,35 @@
                 {% endcall %}
             {% else %}
                 <div class="col-12 text-center">
-                    <p class="fw-bold text-danger">No hubo publicaciones para la fecha de hoy</p>
+                    <p class="text-center text-center text-muted">No hay edictos publicados para la fecha de hoy</p>
                 </div>
             {% endif %}
         {% endcall %}
     {% endif %}
     <!-- Publicaciones de todas las notarias -->
-    {% call detail.card(title='Edictos publicados de todas las notarias ' + fecha_actual ) %}
-        {% if mostrar_notaria %}
-            {% call card.container_row() %}
-                {% for edicto_id, fecha, descripcion, autoridad_clave, cantidad in edictos_dia_lista %}
-                    {% call card.col_md(3) %}
-                        {% call card.card(autoridad_clave) %}
-                            {% call card.card_body() %}
-                                {{descripcion}}
-                                {{ card.button_md(
-                                    label= 'Ver Edictos',
-                                    url=url_for('edictos.detail', edicto_id=edicto_id))
-                                }}
+    {% if mostrar_notaria %}
+        {% call detail.card(title='Edictos publicados hoy general') %}
+            {% if edictos_dia_lista %}
+                {% call card.container_row() %}
+                    {% for edicto_id, fecha, descripcion, autoridad_clave, cantidad in edictos_dia_lista %}
+                        {% call card.col_md(3) %}
+                            {% call card.card(autoridad_clave) %}
+                                {% call card.card_body() %}
+                                    {{descripcion}}
+                                    {{ card.button_md(
+                                        label= 'Ver Edictos',
+                                        url=url_for('edictos.detail', edicto_id=edicto_id))
+                                    }}
+                                {% endcall %}
                             {% endcall %}
                         {% endcall %}
-                    {% endcall %}
-                {% endfor %}
-            {% endcall %}
-        {% endif %}
-    {% endcall %}
+                    {% endfor %}
+                {% endcall %}
+            {% else %}
+                <p class="text-center text-muted">No hay edictos publicados para el día de hoy.</p>
+            {% endif %}
+        {% endcall %}
+    {% endif %}
     <!-- End  -->
 {% endblock %}
 

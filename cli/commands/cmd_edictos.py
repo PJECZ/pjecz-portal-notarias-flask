@@ -8,6 +8,7 @@ import click
 import sys
 
 from lib.exceptions import MyAnyError
+from sqlalchemy import func, Integer
 
 from portal_notarias.app import create_app
 from portal_notarias.blueprints.edictos.tasks import enviar_email_acuse_recibido as enviar_email_acuse_recibido_task
@@ -28,62 +29,97 @@ def cli():
 
 
 @click.command()
-@click.argument("edicto_id", type=int)
-@click.argument("nueva_fecha", type=str)
-def republicacion_edictos(edicto_id: int, nueva_fecha: str):
+@click.argument("fecha", type=str)
+def republicacion_edictos(fecha: str):
     """Muestra las fechas de republicación de un edicto y permite agregar una nueva"""
-
-    # Busca el edicto original
-    edicto_original = database.session.query(Edicto).filter_by(id=edicto_id).first()
-    if not edicto_original:
-        click.echo(f"Error: No se encontró el edicto con ID {edicto_id}")
-        sys.exit(1)
 
     try:
         # Convertir la fecha proporcionada
-        nueva_fecha_dt = datetime.strptime(nueva_fecha, "%Y-%m-%d")
+        fecha_dt = datetime.strptime(fecha, "%Y-%m-%d").date()
 
-        # Validar si ya existe una publicacion en esa fecha en edictos_acuses
-        republicacion_existente = (
-            database.session.query(EdictoAcuse)
-            .filter_by(
-                id=edicto_id,
-                fecha=nueva_fecha_dt,
+        # Buscar todos los edictos en 'edictos_acuses' programados para la fecha dada
+        edictos_acuses = database.session.query(EdictoAcuse).filter(EdictoAcuse.fecha == fecha_dt).all()
+
+        if not edictos_acuses:
+            click.echo(f"No hay republicaciones programadas para la fecha {fecha}.")
+            sys.exit(0)
+
+        edictos_creados = []  # Lista para almacenar los IDs de los edictos insertados
+
+        for edicto_acuse in edictos_acuses:
+            edicto_id = edicto_acuse.edicto_id
+
+            # Verificar si el edicto original existe
+            edicto_original = database.session.query(Edicto).filter_by(id=edicto_id).first()
+            if not edicto_original:
+                click.echo(f"Advertencia: No se encontró el edicto con ID {edicto_id}. Se omite.")
+                continue
+
+            # Verificar si ya existe una republicación para esta fecha
+            edicto_existente = (
+                database.session.query(Edicto)
+                .filter(
+                    Edicto.edicto_id_original == edicto_id,
+                    Edicto.fecha == fecha_dt,
+                )
+                .first()
             )
-            .first()
-        )
-        if republicacion_existente:
-            click.echo(f"Error: Ya existe una republicación para el edicto {edicto_id} en la fecha {nueva_fecha}.")
-            sys.exit(1)
 
-        # Agregar la nueva republicacion en edictos_acuses
-        nueva_republicacion = EdictoAcuse(edicto_id=edicto_id, fecha=nueva_fecha_dt)
-        database.session.add(nueva_republicacion)
+            if edicto_existente:
+                click.echo(f"Ya existe una republicación para el edicto {edicto_id} en la fecha {fecha}. Se omite.")
+                continue
+            edicto_base_id = edicto_original.edicto_id_original if edicto_original.edicto_id_original else edicto_original.id
+            # Si el edicto tiene un edicto_id_original, buscamos el primer edcito original
+            edicto_base = database.session.query(Edicto).filter(Edicto.id == edicto_base_id).first()
+            # Obtener el último número de publicación del edicto
+            ultima_publicacion = (
+                database.session.query(func.max(Edicto.numero_publicacion))
+                .filter(Edicto.edicto_id_original == edicto_base.id)
+                .scalar()
+            )
 
-        # Crear un nuevo edicto para la republicacion
-        nuevo_edicto = Edicto(
-            autoridad_id=edicto_original.autoridad_id,
-            fecha=nueva_fecha_dt,  # la fecha nueva de republicacion
-            descripcion=edicto_original.descripcion,
-            expediente=edicto_original.expediente,
-            numero_publicacion=edicto_original.numero_publicacion,
-            archivo=edicto_original.archivo,
-            url=edicto_original.url,
-            acuse_num=edicto_original.acuse_num,
-            edicto_id_original=edicto_id,  # Hace referencia al edicto original
-        )
+            # Si no hay publicaciones previas, la primera republicación será "2"
+            if ultima_publicacion is None:
+                nueva_publicacion = "2"  # Primera republicación después de la original
+            else:
+                try:
+                    nueva_publicacion = str(int(ultima_publicacion) + 1)  # convertir a int, sumar y regresar a str.
+                except ValueError:
+                    # Manejar el caso donde el valor no es un número válido
+                    click.echo(f"Advertencia: El número de publicación '{ultima_publicacion}' no es un entero válido.")
+                    nueva_publicacion = "2"  # valor por defecto el numero original
 
-        database.session.add(nuevo_edicto)
-        database.session.commit()
+            # Crear un nuevo edicto para la republicacion
+            nuevo_edicto = Edicto(
+                autoridad_id=edicto_original.autoridad_id,
+                fecha=fecha_dt,  # la fecha nueva de republicacion
+                descripcion=edicto_original.descripcion,
+                expediente=edicto_original.expediente,
+                numero_publicacion=nueva_publicacion,
+                archivo=edicto_original.archivo,
+                url=edicto_original.url,
+                acuse_num=0,
+                edicto_id_original=edicto_id,  # Hace referencia al edicto original
+            )
 
-        mensaje = f"Republicación creada con ID: {nuevo_edicto.id} y fecha {nuevo_edicto.fecha}."
+            database.session.add(nuevo_edicto)
+            database.session.commit()
+            edictos_creados.append(nuevo_edicto.id)  # Guardar referencia para obtener los ids después
 
-    except ValueError:
+        # Confirmar todas las inserciones de una vez
+        if edictos_creados:
+            # ids_creados = [str(e.id) for e in edictos_creados]
+            # click.echo(f"Republicaciones creadas con IDs: {', '.join(ids_creados)}")
+            mensaje = f"Republicación creada con IDs:{edictos_creados} y fecha {fecha}."
+        else:
+            # click.echo("No se creó ninguna republicación")
+            mensaje = f"No se creó ninguna republicación para la fecha {fecha}"
+
+    except Exception as e:
+        click.echo(f"Error: {e}")
         click.echo("Error: El formato de la fecha debe ser YYYY-MM-DD.")
         sys.exit(1)
-    except MyAnyError as error:
-        click.echo(f"Error: {error}")
-        sys.exit(1)
+
     # Memsaje de éxito
     click.echo(mensaje)
 

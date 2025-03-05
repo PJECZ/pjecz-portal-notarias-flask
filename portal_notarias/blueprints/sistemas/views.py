@@ -61,6 +61,7 @@ def start():
             .join(Autoridad, Edicto.autoridad_id == Autoridad.id)  # Hacer join con la tabla de autoridad
             .filter(func.date(Edicto.fecha) == fecha_actual)
             .filter(Edicto.estatus == "A")
+            # .filter(Edicto.autoridad_id != current_user.autoridad.id)  # Excluir la autoridad del usuario actual
             .group_by(Edicto.id, Edicto.fecha, Edicto.descripcion, Autoridad.clave)
             .order_by(Edicto.descripcion)
             .all()
@@ -81,7 +82,6 @@ def start():
             edictos_usuarios_lista=edictos_usuarios_lista,  # publicacion del usuario
             edictos_dia_lista=edictos_dia_lista,  # publicacion todos
             fecha_actual=fecha_actual,
-            titulo="Publicaciones de Edictos a la fecha actual",
         )
 
     # No está autenticado, debe de iniciar sesión
