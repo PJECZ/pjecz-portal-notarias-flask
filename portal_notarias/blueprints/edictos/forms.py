@@ -4,7 +4,7 @@ Edictos, formularios
 
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileRequired
-from wtforms import DateField, StringField, SubmitField, RadioField
+from wtforms import DateField, IntegerField, StringField, SubmitField, RadioField
 from wtforms.validators import DataRequired, Length, Optional, Regexp
 
 from lib.safe_string import EXPEDIENTE_REGEXP, NUMERO_PUBLICACION_REGEXP
@@ -47,12 +47,6 @@ class EdictoNewAutoridadForm(FlaskForm):
 class EdictoEditForm(FlaskForm):
     """Formulario EdictoEdit"""
 
-    acuse_num = RadioField(
-        "Cantidad de veces a públicar",
-        coerce=int,
-        choices=[("1", "1 vez"), ("2", "2 veces"), ("3", "3 veces"), ("4", "4 veces"), ("5", "5 veces")],
-        validators=[DataRequired()],
-    )
     fecha_acuse_1 = DateField("Publicación 1", render_kw={"readonly": True}, validators=[Optional()])  # Deshabilitado
     fecha_acuse_2 = DateField("Publicación 2", validators=[Optional()])
     fecha_acuse_3 = DateField("Publicación 3", validators=[Optional()])

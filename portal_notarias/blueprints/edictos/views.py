@@ -2,24 +2,21 @@
 Edictos, vistas
 """
 
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, time, timedelta
 import json
 from urllib.parse import quote
 
 from flask import Blueprint, current_app, flash, make_response, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
+from pytz import timezone
 from werkzeug.datastructures import CombinedMultiDict
 from werkzeug.exceptions import NotFound
 
 from lib.datatables import get_datatable_parameters, output_datatable_json
 from lib.exceptions import (
     MyBucketNotFoundError,
-    MyFilenameError,
     MyFileNotFoundError,
-    MyMissingConfigurationError,
-    MyNotAllowedExtensionError,
     MyNotValidParamError,
-    MyUnknownExtensionError,
 )
 from lib.exceptions import MyAnyError
 from lib.google_cloud_storage import get_blob_name_from_url, get_media_type_from_filename, get_file_from_gcs
@@ -37,12 +34,19 @@ from portal_notarias.blueprints.edictos.models import Edicto
 from portal_notarias.blueprints.edictos.forms import EdictoNewForm, EdictoNewAutoridadForm, EdictoEditForm
 from portal_notarias.blueprints.edictos_acuses.models import EdictoAcuse
 
-edictos = Blueprint("edictos", __name__, template_folder="templates")
+
+# Zona horaria
+TIMEZONE = "America/Mexico_City"
+local_tz = timezone(TIMEZONE)
+medianoche = time.min
 
 MODULO = "EDICTOS"
 
 LIMITE_DIAS = 365  # Un anio
 LIMITE_ADMINISTRADORES_DIAS = 3650  # Administradores pueden manipular diez anios
+LIMITE_DIAS_ELIMINAR = LIMITE_DIAS_RECUPERAR = LIMITE_DIAS_EDITAR = 1
+
+edictos = Blueprint("edictos", __name__, template_folder="templates")
 
 
 @edictos.route("/edictos/acuses/<id_hashed>")
@@ -106,6 +110,8 @@ def datatable_json():
         consulta = consulta.filter(Edicto.fecha <= request.form["fecha_hasta"])
     if "descripcion" in request.form:
         consulta = consulta.filter(Edicto.descripcion.contains(safe_string(request.form["descripcion"])))
+    if "numero_publicacion" in request.form:
+        consulta = consulta.filter(Edicto.numero_publicacion.contains(request.form["numero_publicacion"]))
     # Ordenar y paginar
     registros = consulta.order_by(Edicto.fecha.desc()).offset(start).limit(rows_per_page).all()
     total = consulta.count()
@@ -163,11 +169,7 @@ def datatable_json_admin():
         except (IndexError, ValueError):
             pass
     if "numero_publicacion" in request.form:
-        try:
-            numero_publicacion = safe_numero_publicacion(request.form["numero_publicacion"])
-            consulta = consulta.filter_by(numero_publicacion=numero_publicacion)
-        except (IndexError, ValueError):
-            pass
+        consulta = consulta.filter(Edicto.numero_publicacion.contains(request.form["numero_publicacion"]))
     registros = consulta.order_by(Edicto.fecha.desc()).offset(start).limit(rows_per_page).all()
     total = consulta.count()
     # Elaborar datos para DataTable
@@ -635,10 +637,97 @@ def new_for_autoridad(autoridad_id):
 def edit(edicto_id):
     """Editar Edicto"""
     edicto = Edicto.query.get_or_404(edicto_id)
+
+    # Validar autoridad
+    autoridad = edicto.autoridad
+    if autoridad.estatus != "A":
+        flash("La Notaría no esta activa.", "warning")
+        return redirect(url_for("edictos.list_active"))
+    if not autoridad.distrito.es_distrito_judicial:
+        flash("El Distrito no es jurisdiccional.", "warning")
+        return redirect(url_for("edictos.list_active"))
+    if not autoridad.es_notaria:
+        flash("La Notaria no tiene en verdadero el boleano que la define como notaria.", "warning")
+        return redirect(url_for("edictos.list_active"))
+    if autoridad.directorio_edictos is None or autoridad.directorio_edictos == "":
+        flash("La Notaria no tiene directorio para edictos.", "warning")
+        return redirect(url_for("edictos.list_active"))
+
+    # Si NO es administrador
+    if not (current_user.can_admin(MODULO)):
+        # Validar que le pertenezca
+        if current_user.autoridad_id != edicto.autoridad_id:
+            flash("No puede editar registros ajenos.", "warning")
+            return redirect(url_for("edictos.list_active"))
+        # Si fue creado hace más de LIMITE_DIAS_EDITAR
+        if edicto.creado < datetime.now(tz=local_tz) - timedelta(days=LIMITE_DIAS_EDITAR):
+            flash(f"Ya no puede editar porque fue creado hace más de {LIMITE_DIAS_EDITAR} día.", "warning")
+            return redirect(url_for("edictos.detail", edicto_id=edicto.id))
+
+    # Obtener los acuses asociados al edicto
+    acuses = EdictoAcuse.query.filter(EdictoAcuse.edicto_id == edicto.id).order_by(EdictoAcuse.fecha).all()
+
+    # Si viene el formulario
     form = EdictoEditForm()
     if form.validate_on_submit():
-        edicto.descripcion = safe_string(form.descripcion.data)
+        es_valido = True
+
+        # Validar la descripción
+        descripcion = safe_string(form.descripcion.data, save_enie=True)
+        if descripcion == "":
+            flash("La descripción es incorrecta.", "warning")
+            es_valido = False
+
+        # Obtener la fecha original del primer acuse
+        fecha_original_acuse_1 = edicto.fecha  # No se permite editar la primer fecha.
+
+        # Validar las fechas de los acuses que se ingresan manualmente por el usuario
+        limite_futuro_date = fecha_original_acuse_1 + timedelta(days=30)
+        fechas_acuses_list = [fecha_original_acuse_1]  # Incluir la fecha original del primer acuse
+        for i in range(2, 6):  # Comenzar desde el segundo acuse
+            fecha_acuse_str = getattr(form, f"fecha_acuse_{i}").data
+            if fecha_acuse_str is not None:
+                if isinstance(fecha_acuse_str, str):
+                    try:
+                        fecha_acuse = datetime.strptime(fecha_acuse_str, "%Y-%m-%d").date()
+                        fechas_acuses_list.append(fecha_acuse)
+                    except ValueError:
+                        flash(f"Fecha de publicación {i} no válida.", "warning")
+                        es_valido = False
+                        break
+                elif isinstance(fecha_acuse_str, date):
+                    fechas_acuses_list.append(fecha_acuse_str)
+        for fecha_acuse in fechas_acuses_list:
+            if fecha_acuse is None:  # Validar que NO sea nulo
+                flash("Falta una de las fechas de publicación.", "warning")
+                es_valido = False
+                break
+            if fecha_acuse < fecha_original_acuse_1:  # Validar que No sea del pasado
+                flash("La fecha de publicación no puede ser del pasado.", "warning")
+                es_valido = False
+                break
+            if fecha_acuse > limite_futuro_date:  # Validar que NO sea posterior al limite permitido
+                flash("Solo se permiten fechas de publicación hasta un mes en el futuro.", "warning")
+                es_valido = False
+
+        # Si NO es váido, entonces se vuelve a mostrar el formulario
+        if es_valido is False:
+            return render_template("edictos/edit.jinja2", form=form, edicto=edicto)
+
+        # Actualizar el registro en la base de datos
+        edicto.descripcion = descripcion
         edicto.save()
+
+        # Actualizar los acuses
+        EdictoAcuse.query.filter_by(edicto_id=edicto.id).delete()  # Eliminar los acuses existentes
+        for fecha_acuse in fechas_acuses_list:
+            if fecha_acuse != fecha_original_acuse_1:  # No crear acuse para la fecha original
+                acuse = EdictoAcuse(
+                    edicto_id=edicto.id,
+                    fecha=fecha_acuse,
+                )
+                acuse.save()
+        # Mostrar el detalle
         bitacora = Bitacora(
             modulo=Modulo.query.filter_by(nombre=MODULO).first(),
             usuario=current_user,
@@ -648,7 +737,14 @@ def edit(edicto_id):
         bitacora.save()
         flash(bitacora.descripcion, "success")
         return redirect(bitacora.url)
-    form.descripcion.data = edicto.descripcion
+
+    else:
+        # Pre-llenar el formulario con los datos del edicto y los acuses
+        form.descripcion.data = edicto.descripcion
+        for i, acuse in enumerate(acuses):
+            if i + 2 <= 5:  # Asegurarse de que no exceda el número de campos de fecha en el formulario
+                fecha_acuse_field = getattr(form, f"fecha_acuse_{i + 2}")
+                fecha_acuse_field.data = acuse.fecha
     return render_template("edictos/edit.jinja2", form=form, edicto=edicto)
 
 

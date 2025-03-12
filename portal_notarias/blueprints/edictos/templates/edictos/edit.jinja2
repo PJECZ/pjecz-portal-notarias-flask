@@ -4,6 +4,13 @@
 
 {% block title %}Editar Edicto {{ edicto.descripcion }}{% endblock %}
 
+{% block custom_head %}
+    {{ f.drop_zone_css() }}
+    <style>
+        .radiobutton_inline { display: flex; }
+    </style>
+{% endblock %}
+
 {% block topbar_actions %}
     {% call topbar.page_buttons('Editar ' + edicto.descripcion) %}
         {{ topbar.button_cancel() }}
@@ -14,8 +21,44 @@
     {% call f.card() %}
         {% set form_kwargs = {'edicto_id': edicto.id} %}
         {% call f.form_tag('edictos.edit', fid='edicto_form', **form_kwargs) %}
+            <div class="alert alert-info" role="alert">
+                <b> AVISO:</b> Editar las fechas que desea cambiar .
+            </div>
+            {% if form.fecha_acuse_2.data %}
+                <div id="fecha_acuse_container_2" class="fecha-acuse">
+                    <label for="fecha_acuse_2" class="fecha-acuse-titulo">Segunda publicación</label>
+                    <input type="date" class="form-control" id="fecha_acuse_2" name="fecha_acuse_2" value="{{ form.fecha_acuse_2.data }}">
+                </div>
+            {% endif %}
+            {% if form.fecha_acuse_3.data %}
+                <div id="fecha_acuse_container_3" class="fecha-acuse">
+                    <label for="fecha_acuse_3" class="fecha-acuse-titulo">Tercera publicación</label>
+                    <input type="date" class="form-control" id="fecha_acuse_3" name="fecha_acuse_3" value="{{ form.fecha_acuse_3.data }}">
+                </div>
+            {% endif %}
+            {% if form.fecha_acuse_4.data %}
+                <div id="fecha_acuse_container_4" class="fecha-acuse">
+                    <label for="fecha_acuse_4" class="fecha-acuse-titulo">Cuarta publicación</label>
+                    <input type="date" class="form-control" id="fecha_acuse_4" name="fecha_acuse_4" value="{{ form.fecha_acuse_4.data }}">
+                </div>
+            {% endif %}
+            {% if form.fecha_acuse_5.data %}
+                <div id="fecha_acuse_container_5" class="fecha-acuse">
+                    <label for="fecha_acuse_5" class="fecha-acuse-titulo">Quinta publicación</label>
+                    <input type="date" class="form-control" id="fecha_acuse_5" name="fecha_acuse_5" value="{{ form.fecha_acuse_5.data }}">
+                </div>
+            {% endif %}
             {% call f.form_group(form.descripcion) %}{% endcall %}
             {% call f.form_group(form.guardar) %}{% endcall %}
         {% endcall %}
     {% endcall %}
+{% endblock %}
+
+{% block custom_javascript %}
+  <script>
+        // confirmar botón de modal para la publicacion del Edicto haga el submit
+        $("#edicto_confirm").click(function(){
+            $("#edicto_form").submit()
+        });
+    </script>
 {% endblock %}

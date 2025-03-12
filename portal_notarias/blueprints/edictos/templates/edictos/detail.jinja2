@@ -35,7 +35,7 @@
         {{ detail.label_value('Notaria', edicto.autoridad.descripcion) }}
         {{ detail.label_value('Número de publicación', edicto.numero_publicacion) }}
         {{ detail.label_value('Veces a publicar', edicto.acuse_num) }}
-        {{ detail.label_value('Creado', moment(edicto.creado).format('llll')) }}
+        {{ detail.label_value('Fecha de publicación', edicto.fecha) }}
         <div class="row mt-2">
             <div class="col-md-6">
                 {{ detail.button_md('Enlace público para descargar PDF', edicto.descargar_url, 'mdi:web', '_blank') }}
