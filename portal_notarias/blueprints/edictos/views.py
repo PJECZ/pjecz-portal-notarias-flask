@@ -680,6 +680,7 @@ def edit(edicto_id):
 
         # Obtener la fecha original del primer acuse
         fecha_original_acuse_1 = edicto.fecha  # No se permite editar la primer fecha.
+        print(fecha_original_acuse_1)
 
         # Validar las fechas de los acuses que se ingresan manualmente por el usuario
         limite_futuro_date = fecha_original_acuse_1 + timedelta(days=30)
@@ -689,12 +690,24 @@ def edit(edicto_id):
             if fecha_acuse_str is not None:
                 if isinstance(fecha_acuse_str, str):
                     try:
-                        fecha_acuse = datetime.strptime(fecha_acuse_str, "%Y-%m-%d").date()
+                        # Detectar automáticamente el formato de fecha y convertirlo a YYYY-MM-DD
+                        if "-" in fecha_acuse_str:
+                            fecha_acuse = datetime.strptime(fecha_acuse_str, "%Y-%m-%d").date()
+                        elif "/" in fecha_acuse_str:
+                            fecha_acuse = datetime.strptime(fecha_acuse_str, "%Y/%m/%d").date()
+                        else:
+                            fecha_acuse = datetime.strptime(fecha_acuse_str, "%Y%m%d").date()
                         fechas_acuses_list.append(fecha_acuse)
                     except ValueError:
                         flash(f"Fecha de publicación {i} no válida.", "warning")
                         es_valido = False
                         break
+                        # fecha_acuse = datetime.strptime(fecha_acuse_str, "%Y-%m-%d").date()
+                        # fechas_acuses_list.append(fecha_acuse)
+                    # except ValueError:
+                    #     flash(f"Fecha de publicación {i} no válida.", "warning")
+                    #     es_valido = False
+                    #     break
                 elif isinstance(fecha_acuse_str, date):
                     fechas_acuses_list.append(fecha_acuse_str)
         for fecha_acuse in fechas_acuses_list:

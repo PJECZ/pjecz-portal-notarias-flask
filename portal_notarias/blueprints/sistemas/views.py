@@ -32,7 +32,6 @@ def start():
         # Calcular fecha actual
         fecha_actual = datetime.today().strftime("%d-%m-%Y")
 
-        print(fecha_actual)
         # Consultar las cantidades de EDICTOS publicados en la fecha actual
         edictos_usuario = (
             database.session.query(
