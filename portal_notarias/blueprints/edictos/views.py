@@ -679,7 +679,8 @@ def edit(edicto_id):
             es_valido = False
 
         # Obtener la fecha original del primer acuse
-        fecha_original_acuse_1 = edicto.fecha  # No se permite editar la primer fecha.
+        fecha_original_acuse_1 = edicto.fecha.strftime("%Y-%m-%d")  # No se permite editar la primer fecha.
+        fecha_original_acuse_1 = datetime.strptime(fecha_original_acuse_1, "%Y-%m-%d").date()
         print(fecha_original_acuse_1)
 
         # Validar las fechas de los acuses que se ingresan manualmente por el usuario
