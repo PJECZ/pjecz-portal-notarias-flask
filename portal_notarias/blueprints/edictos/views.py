@@ -692,22 +692,23 @@ def edit(edicto_id):
                     try:
                         # Detectar automáticamente el formato de fecha y convertirlo a YYYY-MM-DD
                         if "-" in fecha_acuse_str:
-                            fecha_acuse = datetime.strptime(fecha_acuse_str, "%Y-%m-%d").date()
-                        elif "/" in fecha_acuse_str:
-                            fecha_acuse = datetime.strptime(fecha_acuse_str, "%Y/%m/%d").date()
+                            formatos_posibles = ["%Y-%m-%d", "%d-%m-%Y", "%m-%d-%Y"]
+                            for formato in formatos_posibles:
+                                try:
+                                    fecha_acuse = datetime.strptime(fecha_acuse_str, formato).date()
+                                    break  # Si un formato es correcto, salir del bucle
+                                except ValueError:
+                                    pass
                         else:
-                            fecha_acuse = datetime.strptime(fecha_acuse_str, "%Y%m%d").date()
-                        fechas_acuses_list.append(fecha_acuse)
+                            raise ValueError  # Si no hay guiones, es un formato no válido
+
+                        # Asegurar que la fecha se guarde en el formato correcto
+                        fecha_acuse = fecha_acuse.strftime("%Y-%m-%d")
+                        fechas_acuses_list.append(datetime.strptime(fecha_acuse, "%Y-%m-%d").date())
                     except ValueError:
                         flash(f"Fecha de publicación {i} no válida.", "warning")
                         es_valido = False
                         break
-                        # fecha_acuse = datetime.strptime(fecha_acuse_str, "%Y-%m-%d").date()
-                        # fechas_acuses_list.append(fecha_acuse)
-                    # except ValueError:
-                    #     flash(f"Fecha de publicación {i} no válida.", "warning")
-                    #     es_valido = False
-                    #     break
                 elif isinstance(fecha_acuse_str, date):
                     fechas_acuses_list.append(fecha_acuse_str)
         for fecha_acuse in fechas_acuses_list:
