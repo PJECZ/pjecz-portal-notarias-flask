@@ -739,7 +739,7 @@ def edit(edicto_id):
             if fecha_acuse != fecha_original_acuse_1:  # No crear acuse para la fecha original
                 acuse = EdictoAcuse(
                     edicto_id=edicto.id,
-                    fecha=fecha_acuse,
+                    fecha=datetime.strptime(str(fecha_acuse), "%Y-%m-%d").date(),
                 )
                 acuse.save()
         # Mostrar el detalle
