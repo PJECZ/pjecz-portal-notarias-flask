@@ -678,88 +678,58 @@ def edit(edicto_id):
             flash("La descripción es incorrecta.", "warning")
             es_valido = False
 
-        # Obtener la fecha original del primer acuse
-        fecha_original_acuse_1 = edicto.fecha.strftime("%Y-%m-%d")  # No se permite editar la primer fecha.
-        fecha_original_acuse_1 = datetime.strptime(fecha_original_acuse_1, "%Y-%m-%d").date()
-        print(fecha_original_acuse_1)
+        # Validar fechas de los acuses, iniciando con la primer fecha del edicto acuse
+        fecha_acuse_1 = edicto.fecha
+        limite_futuro_date = fecha_acuse_1 + timedelta(days=30)  # Calular el limite de fechas futuras
+        fechas_acuses_list = [fecha_acuse_1]  # Inicializar la lista con la fecha del edicto acuse
+        for i in range(1, 6):  # Iterar sobre los campos de fecha de acuse
+            fecha_acuse_date = getattr(form, f"fecha_acuse_{i}").data  # Obtener la fecha de acuse
+            if fecha_acuse_date:  # Se valida si la fecha fue ingresada
+                if (
+                    fecha_acuse_date < fecha_acuse_1
+                ):  # Se valida que la fecha de acuse no sea anterior a la fecha inicial del edicto
+                    flash("La fecha de publicación no puede ser del futuro.", "warning")
+                    es_valido = False
+                    break
+                # Se valida que la fecha de acuse no sea posterior al limite permitido
+                if fecha_acuse_date > limite_futuro_date:
+                    flash("Solo se permiten fechas de publicación hasta un mes en el futuro.", "warning")
+                    es_valido = False
+                    break
 
-        # Validar las fechas de los acuses que se ingresan manualmente por el usuario
-        limite_futuro_date = fecha_original_acuse_1 + timedelta(days=30)
-        fechas_acuses_list = [fecha_original_acuse_1]  # Incluir la fecha original del primer acuse
-        for i in range(2, 6):  # Comenzar desde el segundo acuse
-            fecha_acuse_str = getattr(form, f"fecha_acuse_{i}").data
-            if fecha_acuse_str is not None:
-                if isinstance(fecha_acuse_str, str):
-                    try:
-                        # Detectar automáticamente el formato de fecha y convertirlo a YYYY-MM-DD
-                        if "-" in fecha_acuse_str:
-                            formatos_posibles = ["%Y-%m-%d", "%d-%m-%Y", "%m-%d-%Y"]
-                            for formato in formatos_posibles:
-                                try:
-                                    fecha_acuse = datetime.strptime(fecha_acuse_str, formato).date()
-                                    break  # Si un formato es correcto, salir del bucle
-                                except ValueError:
-                                    pass
-                        else:
-                            raise ValueError  # Si no hay guiones, es un formato no válido
-
-                        # Asegurar que la fecha se guarde en el formato correcto
-                        fecha_acuse = fecha_acuse.strftime("%Y-%m-%d")
-                        fechas_acuses_list.append(datetime.strptime(fecha_acuse, "%Y-%m-%d").date())
-                    except ValueError:
-                        flash(f"Fecha de publicación {i} no válida.", "warning")
-                        es_valido = False
-                        break
-                elif isinstance(fecha_acuse_str, date):
-                    fechas_acuses_list.append(fecha_acuse_str)
-        for fecha_acuse in fechas_acuses_list:
-            if fecha_acuse is None:  # Validar que NO sea nulo
-                flash("Falta una de las fechas de publicación.", "warning")
-                es_valido = False
-                break
-            if fecha_acuse < fecha_original_acuse_1:  # Validar que No sea del pasado
-                flash("La fecha de publicación no puede ser del pasado.", "warning")
-                es_valido = False
-                break
-            if fecha_acuse > limite_futuro_date:  # Validar que NO sea posterior al limite permitido
-                flash("Solo se permiten fechas de publicación hasta un mes en el futuro.", "warning")
-                es_valido = False
-
-        # Si NO es váido, entonces se vuelve a mostrar el formulario
-        if es_valido is False:
+                # Si la fecha de acuse es válida, se agrega a la lista de fechas de acuses
+                fechas_acuses_list.append(fecha_acuse_date)
+        # Si hubo algún problema de validación, se vuelve a mostrar el formulario
+        if not es_valido:
             return render_template("edictos/edit.jinja2", form=form, edicto=edicto)
 
-        # Actualizar el registro en la base de datos
+        # Guardar cambios en el edicto
         edicto.descripcion = descripcion
         edicto.save()
 
         # Actualizar los acuses
-        EdictoAcuse.query.filter_by(edicto_id=edicto.id).delete()  # Eliminar los acuses existentes
-        for fecha_acuse in fechas_acuses_list:
-            if fecha_acuse != fecha_original_acuse_1:  # No crear acuse para la fecha original
-                acuse = EdictoAcuse(
-                    edicto_id=edicto.id,
-                    fecha=datetime.strptime(str(fecha_acuse), "%Y-%m-%d").date(),
-                )
-                acuse.save()
-        # Mostrar el detalle
+        EdictoAcuse.query.filter(EdictoAcuse.edicto_id == edicto.id).delete()
+        for fecha_acuse in fechas_acuses_list[1:]:  # Omitir la primera fecha que es la fecha del edicto
+            acuse = EdictoAcuse(edicto_id=edicto.id, fecha=fecha_acuse)
+            acuse.save()
+
+        # Registrar en la bitácora
         bitacora = Bitacora(
             modulo=Modulo.query.filter_by(nombre=MODULO).first(),
             usuario=current_user,
-            descripcion=safe_message(f"Editado Edicto {edicto.descripcion}"),
+            descripcion=safe_message(f"Edicto {edicto.descripcion} actualizado."),
             url=url_for("edictos.detail", edicto_id=edicto.id),
         )
         bitacora.save()
         flash(bitacora.descripcion, "success")
         return redirect(bitacora.url)
 
-    else:
-        # Pre-llenar el formulario con los datos del edicto y los acuses
-        form.descripcion.data = edicto.descripcion
-        for i, acuse in enumerate(acuses):
-            if i + 2 <= 5:  # Asegurarse de que no exceda el número de campos de fecha en el formulario
-                fecha_acuse_field = getattr(form, f"fecha_acuse_{i + 2}")
-                fecha_acuse_field.data = acuse.fecha
+    # Pre-llenar el formulario con los datos del edicto y los acuses
+    form.descripcion.data = edicto.descripcion
+    for i, acuse in enumerate(acuses):
+        if i + 2 <= 5:  # Asegurarse de que no exceda el número de campos de fecha en el formulario
+            fecha_acuse_field = getattr(form, f"fecha_acuse_{i + 2}")
+            fecha_acuse_field.data = acuse.fecha
     return render_template("edictos/edit.jinja2", form=form, edicto=edicto)
 
 
