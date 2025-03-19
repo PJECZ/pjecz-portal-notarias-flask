@@ -2,7 +2,7 @@
 Sistemas
 """
 
-from datetime import datetime
+from datetime import date
 
 from flask import Blueprint, redirect, render_template, send_from_directory
 from flask_login import current_user
@@ -30,7 +30,7 @@ def start():
         es_notario = "NOTARIA" in obtener_roles
 
         # Calcular fecha actual
-        fecha_actual = datetime.today().strftime("%d-%m-%Y")
+        fecha_actual = date.today()
 
         # Consultar las cantidades de EDICTOS publicados en la fecha actual
         edictos_usuario = (
