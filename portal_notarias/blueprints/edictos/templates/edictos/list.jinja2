@@ -14,6 +14,9 @@
             {% if current_user.can_edit('EDICTOS') %}
                 {{ topbar.button_upload('Subir', url_for('edictos.new')) }}
             {% endif %}
+            {{ topbar.button_dashboard('Tablero', url_for('edictos.dashboard') + '?autoridad_clave=' + autoridad.clave) }}
+        {% else %}
+            {{ topbar.button_dashboard('Tablero', url_for('edictos.dashboard')) }}
         {% endif %}
     {% endcall %}
 {% endblock %}

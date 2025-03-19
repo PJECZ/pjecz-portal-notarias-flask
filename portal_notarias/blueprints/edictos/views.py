@@ -20,7 +20,7 @@ from lib.exceptions import (
 )
 from lib.exceptions import MyAnyError
 from lib.google_cloud_storage import get_blob_name_from_url, get_media_type_from_filename, get_file_from_gcs
-from lib.safe_string import safe_expediente, safe_message, safe_numero_publicacion, safe_string
+from lib.safe_string import safe_clave, safe_expediente, safe_message, safe_numero_publicacion, safe_string
 from lib.storage import GoogleCloudStorage, NotAllowedExtesionError, NotConfiguredError, UnknownExtesionError
 from lib.time_to_text import dia_mes_ano
 from portal_notarias.blueprints.usuarios.decorators import permission_required
@@ -42,6 +42,7 @@ medianoche = time.min
 
 MODULO = "EDICTOS"
 
+DASHBOARD_CANTIDAD_DIAS = 1
 LIMITE_DIAS = 365  # Un anio
 LIMITE_ADMINISTRADORES_DIAS = 3650  # Administradores pueden manipular diez anios
 LIMITE_DIAS_ELIMINAR = LIMITE_DIAS_RECUPERAR = LIMITE_DIAS_EDITAR = 1
@@ -745,3 +746,102 @@ def view_file_pdf(edicto_id):
     response = make_response(archivo)
     response.headers["Content-Type"] = "application/pdf"
     return response
+
+
+@edictos.route("/edictos/tablero")
+@permission_required(MODULO, Permiso.VER)
+def dashboard():
+    """Tablero de Edictos"""
+
+    # Por defecto
+    autoridad = None
+    titulo = "Tablero de Edictos"
+
+    # Si la autoridad del usuario es jurisdiccional o es notaria, se impone
+    if current_user.autoridad.es_jurisdiccional or current_user.autoridad.es_notaria:
+        autoridad = current_user.autoridad
+        titulo = f"Tablero de Edictos de {autoridad.clave}"
+
+    # Si aun no hay autoridad y viene autoridad_id o autoridad_clave en la URL
+    if autoridad is None:
+        try:
+            if "autoridad_id" in request.args:
+                autoridad = Autoridad.query.get(int(request.args.get("autoridad_id")))
+            elif "autoridad_clave" in request.args:
+                autoridad = Autoridad.query.filter_by(clave=safe_clave(request.args.get("autoridad_clave"))).first()
+            if autoridad:
+                titulo = f"{titulo} de {autoridad.clave}"
+        except (TypeError, ValueError):
+            pass
+
+    # Si viene fecha_desde en la URL, validar
+    fecha_desde = None
+    try:
+        if "fecha_desde" in request.args:
+            fecha_desde = datetime.strptime(request.args.get("fecha_desde"), "%Y-%m-%d").date()
+    except (TypeError, ValueError):
+        pass
+
+    # Si viene fecha_hasta en la URL, validar
+    fecha_hasta = None
+    try:
+        if "fecha_hasta" in request.args:
+            fecha_hasta = datetime.strptime(request.args.get("fecha_hasta"), "%Y-%m-%d").date()
+    except (TypeError, ValueError):
+        pass
+
+    # Si fecha_desde y fecha_hasta están invertidas, corregir
+    if fecha_desde and fecha_hasta and fecha_desde > fecha_hasta:
+        fecha_desde, fecha_hasta = fecha_hasta, fecha_desde
+
+    # Si viene fecha_desde y falta fecha_hasta, calcular fecha_hasta sumando fecha_desde y DASHBOARD_CANTIDAD_DIAS
+    if fecha_desde and not fecha_hasta:
+        fecha_hasta = fecha_desde + timedelta(days=DASHBOARD_CANTIDAD_DIAS)
+
+    # Si viene fecha_hasta y falta fecha_desde, calcular fecha_desde restando fecha_hasta y DASHBOARD_CANTIDAD_DIAS
+    if fecha_hasta and not fecha_desde:
+        fecha_desde = fecha_hasta - timedelta(days=DASHBOARD_CANTIDAD_DIAS)
+
+    # Si no viene fecha_desde ni tampoco fecha_hasta, pero viene cantidad_dias en la URL, calcular fecha_desde y fecha_hasta
+    if not fecha_desde and not fecha_hasta:
+        cantidad_dias = DASHBOARD_CANTIDAD_DIAS  # Por defecto
+        try:
+            if "cantidad_dias" in request.args:
+                cantidad_dias = int(request.args.get("cantidad_dias"))
+        except (TypeError, ValueError):
+            cantidad_dias = DASHBOARD_CANTIDAD_DIAS
+        fecha_desde = datetime.now().date() - timedelta(days=cantidad_dias)
+        fecha_hasta = datetime.now().date()
+
+    # Definir el titulo
+    titulo = f"{titulo} desde {fecha_desde.strftime('%Y-%m-%d')} hasta {fecha_hasta.strftime('%Y-%m-%d')}"
+
+    # Si no hay autoridad
+    if autoridad is None:
+        return render_template(
+            "edictos/dashboard.jinja2",
+            autoridad=None,
+            filtros=json.dumps(
+                {
+                    "fecha_desde": fecha_desde.strftime("%Y-%m-%d"),
+                    "fecha_hasta": fecha_hasta.strftime("%Y-%m-%d"),
+                    "estatus": "A",
+                }
+            ),
+            titulo=titulo,
+        )
+
+    # Entregar dashboard.jinja2
+    return render_template(
+        "edictos/dashboard.jinja2",
+        autoridad=autoridad,
+        filtros=json.dumps(
+            {
+                "autoridad_id": autoridad.id,
+                "fecha_desde": fecha_desde.strftime("%Y-%m-%d"),
+                "fecha_hasta": fecha_hasta.strftime("%Y-%m-%d"),
+                "estatus": "A",
+            }
+        ),
+        titulo=titulo,
+    )
