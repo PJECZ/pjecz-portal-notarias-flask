@@ -665,7 +665,7 @@ def edit(edicto_id):
             return redirect(url_for("edictos.detail", edicto_id=edicto.id))
 
     # Obtener los acuses asociados al edicto
-    acuses = EdictoAcuse.query.filter(EdictoAcuse.edicto_id == edicto.id).order_by(EdictoAcuse.fecha).all()
+    acuses = EdictoAcuse.query.filter_by(edicto_id=edicto.id).order_by(EdictoAcuse.fecha).all()
 
     # Si viene el formulario
     form = EdictoEditForm()
@@ -678,41 +678,28 @@ def edit(edicto_id):
             flash("La descripción es incorrecta.", "warning")
             es_valido = False
 
-        # Validar fechas de los acuses, iniciando con la primer fecha del edicto acuse
-        fecha_acuse_1 = edicto.fecha
-        limite_futuro_date = fecha_acuse_1 + timedelta(days=30)  # Calular el limite de fechas futuras
-        fechas_acuses_list = [fecha_acuse_1]  # Inicializar la lista con la fecha del edicto acuse
-        for i in range(1, 6):  # Iterar sobre los campos de fecha de acuse
-            fecha_acuse_date = getattr(form, f"fecha_acuse_{i}").data  # Obtener la fecha de acuse
-            if fecha_acuse_date:  # Se valida si la fecha fue ingresada
-                if (
-                    fecha_acuse_date < fecha_acuse_1
-                ):  # Se valida que la fecha de acuse no sea anterior a la fecha inicial del edicto
-                    flash("La fecha de publicación no puede ser del futuro.", "warning")
-                    es_valido = False
-                    break
-                # Se valida que la fecha de acuse no sea posterior al limite permitido
-                if fecha_acuse_date > limite_futuro_date:
-                    flash("Solo se permiten fechas de publicación hasta un mes en el futuro.", "warning")
-                    es_valido = False
-                    break
-
-                # Si la fecha de acuse es válida, se agrega a la lista de fechas de acuses
-                fechas_acuses_list.append(fecha_acuse_date)
-        # Si hubo algún problema de validación, se vuelve a mostrar el formulario
-        if not es_valido:
-            return render_template("edictos/edit.jinja2", form=form, edicto=edicto)
-
         # Guardar cambios en el edicto
         edicto.descripcion = descripcion
         edicto.save()
 
         # Actualizar los acuses
-        EdictoAcuse.query.filter(EdictoAcuse.edicto_id == edicto.id).delete()
-        for fecha_acuse in fechas_acuses_list[1:]:  # Omitir la primera fecha que es la fecha del edicto
-            acuse = EdictoAcuse(edicto_id=edicto.id, fecha=fecha_acuse)
-            acuse.save()
+        for i, acuse in enumerate(acuses):
+            if i + 2 <= 5:
+                fecha_acuse_field = getattr(form, f"fecha_acuse_{i + 2}")
+                fecha_acuse = fecha_acuse_field.data
+                if fecha_acuse is None:
+                    flash("Falta una de las fechas de publicación.", "warning")
+                    es_valido = False
+                    break
+                if fecha_acuse < datetime.today().date():
+                    flash("La fecha de publicación no puede ser del pasado.", "warning")
+                    es_valido = False
+                    break
+                acuse.fecha = fecha_acuse
+                acuse.save()
 
+        if not es_valido:
+            return render_template("edictos/edit.jinja2", form=form, edicto=edicto)
         # Registrar en la bitácora
         bitacora = Bitacora(
             modulo=Modulo.query.filter_by(nombre=MODULO).first(),
