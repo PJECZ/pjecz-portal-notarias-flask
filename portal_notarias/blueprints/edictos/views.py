@@ -659,8 +659,13 @@ def edit(edicto_id):
         if current_user.autoridad_id != edicto.autoridad_id:
             flash("No puede editar registros ajenos.", "warning")
             return redirect(url_for("edictos.list_active"))
+        # Asegurar que edicto.creado tenga zona horaria
+        if edicto.creado.tzinfo is None:
+            edicto_creado = local_tz.localize(edicto.creado)  # Agregar la zona horaria si no la tiene
+        else:
+            edicto_creado = edicto.creado.astimezone(local_tz)  # Convertir a la zona horaria local si ya tiene una zona horaria
         # Si fue creado hace más de LIMITE_DIAS_EDITAR
-        if edicto.creado < datetime.now(tz=local_tz) - timedelta(days=LIMITE_DIAS_EDITAR):
+        if edicto_creado < datetime.now(local_tz) - timedelta(days=LIMITE_DIAS_EDITAR):
             flash(f"Ya no puede editar porque fue creado hace más de {LIMITE_DIAS_EDITAR} día.", "warning")
             return redirect(url_for("edictos.detail", edicto_id=edicto.id))
 
