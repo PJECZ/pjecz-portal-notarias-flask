@@ -41,33 +41,40 @@
     {% endcall %}
     {% if es_notario %}
         <!-- Publicaciones de la propia notaria -->
-        {% call detail.card(title='Edictos publicados hoy') %}
-            {% if edictos_usuarios_lista %}
-                {% call card.container_row() %}
-                    {% for edicto_id, fecha, descripcion, cantidad in edictos_usuarios_lista %}
-                        {% call card.col_md(3) %}
-                            {% call card.card(current_user.autoridad.clave) %}
-                                {% call card.card_body() %}
-                                    {{descripcion}}
-                                    {{ card.button_md(
-                                        label= 'Ver Edictos',
-                                        url=url_for('edictos.detail', edicto_id=edicto_id)) 
-                                    }}
-                                {% endcall %}
-                            {% endcall %}
-                        {% endcall %}
-                    {% endfor %}
-                {% endcall %}
-            {% else %}
-                <div class="col-12 text-center">
-                    <p class="text-center text-center text-muted">No hay edictos publicados para la fecha de hoy</p>
-                </div>
-            {% endif %}
-        {% endcall %}
+       <div class="card bg-success mb-3">
+            <div class="card-header text-light bg-success">
+                Edictos Publicados {{ current_user.autoridad.descripcion_corta }}
+            </div>
+            <div class="card-body bg-light">
+                {% if edictos_usuarios_lista %}
+                    <div class="row">
+                        {% for edicto_id, fecha, descripcion, cantidad in edictos_usuarios_lista %}
+                            <div class="col-md-3">
+                                <div class="card border-success mb-3">
+                                    <div class="card-header text-dark">
+                                        {{ current_user.autoridad.clave }}
+                                    </div>
+                                    <div class="card-body">
+                                        <p>{{ descripcion }}</p>
+                                        <a class="btn btn-block btn-md btn-outline-success w-100 my-2" href="{{ url_for('edictos.detail', edicto_id=edicto_id) }}">
+                                            ver
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="col-12 text-center">
+                        <p class="text-muted">No hay edictos publicados para la fecha de hoy</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
     {% endif %}
     <!-- Publicaciones de todas las notarias -->
     {% if mostrar_notaria %}
-        {% call detail.card(title='Edictos publicados hoy general') %}
+        {% call detail.card(title='Edictos publicados') %}
             {% if edictos_dia_lista %}
                 {% call card.container_row() %}
                     {% for edicto_id, fecha, descripcion, autoridad_clave, cantidad in edictos_dia_lista %}
@@ -76,7 +83,7 @@
                                 {% call card.card_body() %}
                                     {{descripcion}}
                                     {{ card.button_md(
-                                        label= 'Ver Edictos',
+                                        label= 'Ver',
                                         url=url_for('edictos.detail', edicto_id=edicto_id))
                                     }}
                                 {% endcall %}

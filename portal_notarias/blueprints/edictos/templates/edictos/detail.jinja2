@@ -52,7 +52,7 @@
     {% endcall %}
     {# Listado de acuses #}
     {% if current_user.can_view('EDICTOS ACUSES') %}
-        {% call detail.card('Publicaciones pendientes' ) %}
+        {% call detail.card('Publicaciones' ) %}
             <table id="edictos_acuses_datatable" class="table display nowrap" style="width:100%">
                 <thead>
                     <tr>
