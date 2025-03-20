@@ -25,6 +25,11 @@
         {% if current_user.can_admin('EDICTOS') or (current_user.can_edit('EDICTOS') and edicto.autoridad_id == current_user.autoridad_id) %}
             {{ topbar.button_edit('Editar', url_for('edictos.edit', edicto_id=edicto.id)) }}
         {% endif %}
+        {# Los usuarios con permiso para insertar pueden eliminar y recuperar #}
+        {% if current_user.can_insert('EDICTOS') %}
+            {% if edicto.estatus == 'A' %}{{ topbar.button_delete('Eliminar', url_for('edictos.delete', edicto_id=edicto.id)) }}{% endif %}
+            {% if edicto.estatus == 'B' %}{{ topbar.button_recover('Recuperar', url_for('edictos.recover', edicto_id=edicto.id)) }}{% endif %}
+        {% endif %}
     {% endcall %}
 {% endblock %}
 
@@ -68,6 +73,13 @@
 
 {% block custom_javascript %}
     {{ detail.config_datatable() }}
+    {# Los usuarios que pueden insertar registros tienen permiso para eliminar y recuperar #}
+    {% set descrito = 'el edicto del ' + edicto.fecha.strftime("%Y-%m-%d") + ' de ' + edicto.autoridad.descripcion_corta %}
+    {% if current_user.can_insert('EDICTOS') %}
+        {% if edicto.estatus == 'A' %}{{ modals.custom_javascript_delete('Eliminar', '¿Eliminar ' + descrito + '?') }}{% endif %}
+        {% if edicto.estatus == 'B' %}{{ modals.custom_javascript_recover('Recuperar', '¿Recuperar ' + descrito + '?') }}{% endif %}
+    {% endif %}
+   
     {% if current_user.can_view('EDICTOS ACUSES') %}
         <script>
             configDataTable['ajax']['url'] = '/edictos_acuses/datatable_json';
@@ -110,5 +122,5 @@
             $('#edictos_acuses_datatable').DataTable(configDataTable);
         </script>
     {% endif %}
-    {{ detail.moment_js(moment) }}
+    {# {{ detail.moment_js(moment) }} #}
 {% endblock %}

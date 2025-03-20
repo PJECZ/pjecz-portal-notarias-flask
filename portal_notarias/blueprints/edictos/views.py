@@ -726,6 +726,118 @@ def edit(edicto_id):
     return render_template("edictos/edit.jinja2", form=form, edicto=edicto)
 
 
+@edictos.route("/edictos/eliminar/<int:edicto_id>")
+@permission_required(MODULO, Permiso.CREAR)
+def delete(edicto_id):
+    """Eliminar Edicto"""
+    edicto = Edicto.query.get_or_404(edicto_id)
+    detalle_url = url_for("edictos.detail", edicto_id=edicto.id)
+    # Validar que se pueda eliminar
+    if edicto.estatus == "B":
+        flash("El edicto ya está eliminado.", "warning")
+        return redirect(detalle_url)
+
+    # Si es administrador, puede eliminar
+    if current_user.can_admin(MODULO):
+        for acuse in edicto.acuses_num:
+            acuse.delete()
+        edicto.delete()
+        # Eliminar los edictos_acuses asociados
+        bitacora = Bitacora(
+            modulo=Modulo.query.filter_by(nombre=MODULO).first(),
+            usuario=current_user,
+            descripcion=safe_message(f"Eliminado Edicto {edicto.descripcion}"),
+            url=detalle_url,
+        )
+        bitacora.save()
+        flash(bitacora.descripcion, "success")
+        return redirect(bitacora.url)
+
+    # Si NO le pertenece, mostrar mensaje y redirigir
+    if current_user.autoridad_id != edicto.autoridad_id:
+        flash("No puede eliminar porque no le pertenece.", "warning")
+        return redirect(detalle_url)
+
+    # Si fue creado hace más de LIMITE_DIAS_EDITAR
+    if edicto.creado >= datetime.now(local_tz) - timedelta(days=LIMITE_DIAS_ELIMINAR):
+        # Eliminar los edictos_acuses asociados
+        for acuse in edicto.acuse_num:
+            acuse.delete()
+        edicto.delete()
+        bitacora = Bitacora(
+            modulo=Modulo.query.filter_by(nombre=MODULO).first(),
+            usuario=current_user,
+            descripcion=safe_message(f"Eliminado Edicto {edicto.descripcion}"),
+            url=detalle_url,
+        )
+        bitacora.save()
+        flash(bitacora.descripcion, "success")
+        return redirect(bitacora.url)
+    # No se puede eliminar
+    flash(f"Ya no puede eliminar porque fue creado hace más de {LIMITE_DIAS_ELIMINAR} día.", "warning")
+    return redirect(detalle_url)
+
+
+@edictos.route("/edictos/recuperar/<int:edicto_id>")
+@permission_required(MODULO, Permiso.CREAR)
+def recover(edicto_id):
+    """Recuperar Edicto"""
+    edicto = Edicto.query.get_or_404(edicto_id)
+    detalle_url = url_for("edictos.detail", edicto_id=edicto.id)
+
+    # Validar que se pueda recuperar
+    if edicto.estatus == "A":
+        flash("No puede eliminar este Edicto porque ya está activo.", "success")
+        return redirect(detalle_url)
+
+    # Evitar que se recupere si ya existe una con la misma fecha
+    if Edicto.query.filter_by(autoridad=current_user.autoridad, fecha=edicto.fecha, estatus="A").first():
+        flash("No puede recuperar este Edicto porque ya existe uno activo con la misma fecha.", "warning")
+        return redirect(detalle_url)
+
+    # Definir la descripción para la bitácora
+    fecha_y_autoridad = f"{edicto.fecha.strftime('%Y-%m-%d')} de {edicto.autoridad.clave}"
+    descripcion = safe_message(f"Recuperado Edicto del {fecha_y_autoridad} por {current_user.email}")
+
+    # Si es administrador, puede recuperar
+    if current_user.can_admin(MODULO):
+        edicto.recover()
+        # Recuperar los edictos_acuses asociados
+        for acuse in edicto.acuses_num:
+            acuse.recover()
+        bitacora = Bitacora(
+            modulo=Modulo.query.filter_by(nombre=MODULO).first(),
+            usuario=current_user,
+            descripcion=descripcion,
+            url=detalle_url,
+        )
+        bitacora.save()
+        flash(bitacora.descripcion, "success")
+        return redirect(bitacora.url)
+
+    # Si NO le pertenece, mostrar mensaje y redirigir
+    if current_user.autoridad_id != edicto.autoridad_id:
+        flash("No puede recuperar porque no le pertenece.", "warning")
+        return redirect(detalle_url)
+
+    # Si fue creado hace menos del límite de días, puede recuperar
+    if edicto.creado >= datetime.now(local_tz) - timedelta(days=LIMITE_DIAS_RECUPERAR):
+        edicto.recover()
+        bitacora = Bitacora(
+            modulo=Modulo.query.filter_by(nombre=MODULO).first(),
+            usuario=current_user,
+            descripcion=descripcion,
+            url=detalle_url,
+        )
+        bitacora.save()
+        flash(bitacora.descripcion, "success")
+        return redirect(bitacora.url)
+
+    # No se puede recuperar
+    flash(f"No se puede recuperar porque fue creado hace más de {LIMITE_DIAS_RECUPERAR} día.", "warning")
+    return redirect(detalle_url)
+
+
 @edictos.route("/edictos/ver_archivo_pdf/<int:edicto_id>")
 def view_file_pdf(edicto_id):
     """Ver archivo PDF de Edicto para insertarlo en un iframe en el detalle"""
