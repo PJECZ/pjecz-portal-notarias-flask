@@ -1,4 +1,5 @@
 {% extends 'layouts/app.jinja2' %}
+{% import 'macros/card.jinja2' as card %}
 {% import 'macros/detail.jinja2' as detail %}
 {% import 'macros/start.jinja2' as start %}
 {% import 'macros/topbar.jinja2' as topbar %}
@@ -14,18 +15,88 @@
     {% call detail.card(title='Bienvenidos ') %}
         <div class="container">
             <div class="row">
-                <div class="col-md-6 col-sm-12 mb-2">
-                    <img src="https://storage.googleapis.com/pjecz-informatica/static/images/inicio_notaria.png" class="img-fluid mb-2">
-                </div>
-                <div class="col-md-6 col-sm-12 mb-2 mt-5">
-                    <p>
-                        Este espacio está diseñado para que las notarías puedan realizar de manera fácil y eficiente la publicación y republicación de sus edictos para poder gestionarlas.                     
-                    </p>
-                    <a href="{{ url_for('edictos.list_active') }}" class="btn d-grid gap-2 btn-primary btn-xl btn-tickets ml-auto">Subir Edicto</a>
-                </div>
+                {% if mostrar_notaria %}
+                    <div class="col col-sm-12 mb-2 mt-5">
+                        <p class="fw-bold">¡Bienvenidos y bienvenidas al personal notarial!</p>
+                        <p>
+                            {# Este espacio está diseñado para que las notarías puedan realizar de manera fácil y eficiente la publicación y republicación de sus edictos para poder gestionarlas.                      #}
+                            Este espacio ha sido diseñado pensando en ustedes, con el objetivo de simplificar y agilizar el proceso de publicación y republicación de edictos. 
+                            Aquí encontrarán una herramienta eficiente y fácil de usar para gestionar sus edictos de manera rápida y efectiva. 
+                            Nuestra plataforma les permite realizar un seguimiento del estado de sus edictos, todo en un entorno seguro y confidencial. 
+                            Les invitamos a explorar todas las funcionalidades que hemos desarrollado para facilitar su trabajo."
+                        </p>
+                        <a href="{{ url_for('edictos.new') }}" class="btn d-grid gap-2 btn-primary btn-xl btn-tickets ml-auto">Subir Edicto</a>
+                    </div>
+                {% else %}
+                    <div class="col-md-6 col-sm-12 mb-2">
+                        <img src="https://storage.googleapis.com/pjecz-informatica/static/images/no-entrar-portal-notarias.jpg" class="img-fluid mb-2">
+                    </div>
+                    <div class="col-md-6 col-sm-12" style="padding-top: 210px; margin-right: auto; margin-left: auto">
+                        <p class="text-danger fs-3">No tienes permiosos para esta plataforma, favor de entrar a la plataforma correspondiente</p>
+                        <a href="http://justiciadigital.gob.mx/" class="btn d-grid gap-2 btn-primary btn-xl ml-auto">Justicia Digital</a>
+                    </div>
+                {% endif %}
             </div>
         </div>
     {% endcall %}
+    {% if es_notario %}
+        <!-- Publicaciones de la propia notaria -->
+       <div class="card bg-success mb-3">
+            <div class="card-header text-light bg-success">
+                Edictos Publicados por la  {{ current_user.autoridad.descripcion_corta }}
+            </div>
+            <div class="card-body bg-light">
+                {% if edictos_usuarios_lista %}
+                    <div class="row">
+                        {% for edicto_id, fecha, descripcion, cantidad in edictos_usuarios_lista %}
+                            <div class="col-md-3">
+                                <div class="card border-success mb-3">
+                                    <div class="card-header text-dark">
+                                        {{ current_user.autoridad.clave }}
+                                    </div>
+                                    <div class="card-body">
+                                        <p>{{ descripcion }}</p>
+                                        <a class="btn btn-block btn-md btn-outline-success w-100 my-2" href="{{ url_for('edictos.detail', edicto_id=edicto_id) }}">
+                                            Ver
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="col-12 text-center">
+                        <p class="text-muted">No hay edictos publicados para la fecha de hoy</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
+    <!-- Publicaciones de todas las notarias -->
+    {% if mostrar_notaria %}
+        {% call detail.card(title='Edictos publicados por otras Notarías') %}
+            {% if edictos_dia_lista %}
+                {% call card.container_row() %}
+                    {% for edicto_id, fecha, descripcion, autoridad_clave, cantidad in edictos_dia_lista %}
+                        {% call card.col_md(3) %}
+                            {% call card.card(autoridad_clave) %}
+                                {% call card.card_body() %}
+                                    {{descripcion}}
+                                    {{ card.button_md(
+                                        label= 'Ver',
+                                        url=url_for('edictos.detail', edicto_id=edicto_id))
+                                    }}
+                                {% endcall %}
+                            {% endcall %}
+                        {% endcall %}
+                    {% endfor %}
+                {% endcall %}
+            {% else %}
+                <p class="text-center text-muted">No hay edictos publicados para el día de hoy.</p>
+            {% endif %}
+        {% endcall %}
+    {% endif %}
+    <!-- End  -->
 {% endblock %}
 
 {% block custom_javascript %}

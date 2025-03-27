@@ -19,25 +19,28 @@
 {% block content %}
     {% call f.card() %}
         {% call f.form_tag_multipart('edictos.new', fid='edicto_form') %}
+            <div class="alert alert-info" role="alert">
+                <b> AVISO:</b> Las fechas que seleccione serán la base para las republicaciones y el calendario de publicaciones. Asegúrese de elegir las fechas correctas.
+            </div>
             {% call f.form_group(form.acuse_num, css_class="radiobutton_inline mi_acuse") %}{% endcall %}
             <div id="fecha_acuse_container_1" class="fecha-acuse" style="display: none;">
-                <label for="fecha_acuse_1" class="fecha-acuse-titulo" style="display: none;">Primera publicacion</label>
+                <label for="fecha_acuse_1" class="fecha-acuse-titulo" style="display: none;">Primera publicación</label>
                 <input type="date" class="form-control" id="fecha_acuse_1" name="fecha_acuse_1" value="{{ form.fecha_acuse_1.data }}" disabled>
             </div>
             <div id="fecha_acuse_container_2" class="fecha-acuse" style="display: none;">
-                <label for="fecha_acuse_2" class="fecha-acuse-titulo" style="display: none;">Segunda publicacion</label>
+                <label for="fecha_acuse_2" class="fecha-acuse-titulo" style="display: none;">Segunda publicación</label>
                 <input type="date" class="form-control" id="fecha_acuse_2" name="fecha_acuse_2" value="{{ form.fecha_acuse_2.data }}" style="display: none;">
             </div>
             <div id="fecha_acuse_container_3" class="fecha-acuse" style="display: none;">
-                <label for="fecha_acuse_3" class="fecha-acuse-titulo" style="display: none;">Tercera publicacion</label>
+                <label for="fecha_acuse_3" class="fecha-acuse-titulo" style="display: none;">Tercera publicación</label>
                 <input type="date" class="form-control" id="fecha_acuse_3" name="fecha_acuse_3" value="{{ form.fecha_acuse_3.data }}" style="display: none;">
             </div>
             <div id="fecha_acuse_container_4" class="fecha-acuse" style="display: none;">
-                <label for="fecha_acuse_4" class="fecha-acuse-titulo" style="display: none;">Cuarta publicacion</label>
+                <label for="fecha_acuse_4" class="fecha-acuse-titulo" style="display: none;">Cuarta publicación</label>
                 <input type="date" class="form-control" id="fecha_acuse_4" name="fecha_acuse_4" value="{{ form.fecha_acuse_4.data }}" style="display: none;">
             </div>
             <div id="fecha_acuse_container_5" class="fecha-acuse" style="display: none;">
-                <label for="fecha_acuse_5" class="fecha-acuse-titulo" style="display: none;">Quinta publicacion</label>
+                <label for="fecha_acuse_5" class="fecha-acuse-titulo" style="display: none;">Quinta publicación</label>
                 <input type="date" class="form-control" id="fecha_acuse_5" name="fecha_acuse_5" value="{{ form.fecha_acuse_5.data }}" style="display: none;">
             </div>
             {% call f.form_group(form.descripcion) %}{% endcall %}

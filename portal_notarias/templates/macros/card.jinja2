@@ -1,0 +1,77 @@
+{# Bootstrap container #}
+{%- macro container() -%}
+    <div class="container text-center">
+        {{ caller () }}
+    </div>
+{%- endmacro -%}
+
+{# Bootstrap container_row #}
+{%- macro container_row() -%}
+    <div class="row">
+        {{ caller () }}
+    </div>
+{%- endmacro -%}
+
+{# Bootstrap col_md_4 #}
+{%- macro col_md(denominador=4) -%}
+    <div class="col-md-{{ denominador }}">
+        {{ caller () }}
+    </div>
+{%- endmacro -%}
+
+{# Bootstrap card #}
+{%- macro card(title='', img_top='', img_top_alt='') -%}
+    <div class="card mb-4">
+        {% if img_top %}<img src="{{ img_top }}" class="card-img-top" alt="{{ img_top_alt }}" width="100%">{% endif %}
+        {% if title %}<div class="card-header p-2 text-bg-primary border-dark">{{ title }}</div>{% endif %}
+        <div class="card-body">
+            {{ caller () }}
+        </div>
+    </div>
+{%- endmacro -%}
+
+{# Bootstrap card body #}
+{%- macro card_body(title='', button_text='', button_url='#') -%}
+    {% if title %}<h1 class="card-title">
+        <small class="text-body-secondary fw-light">
+            {{ title }}
+        </small>
+    </h1>{% endif %}
+    {{ caller () }}
+    {% if button_text %}<a href="{{ button_url }}" type="button" class="w-100 btn btn-lg btn-outline-primary mt-2">
+        {{ button_text }}
+    </a>{% endif %}
+{%- endmacro -%}
+
+{# List unstyled #}
+{%- macro list_unstyled() -%}
+    <ul class="list-unstyled mt-3 mb-4">
+        <li>
+            {{ caller () }}
+        </li>
+    </ul>
+{%- endmacro -%}
+
+{# Button small #}
+{%- macro button_sm(label, url, icon='', target='', color_class='btn-outline-primary') -%}
+    <a class="btn btn-block btn-sm {{ color_class }} w-100 my-2" href="{{ url }}" {% if target %}target="{{ target }}"{% endif %}>
+        {% if icon %}<span class="iconify" data-icon="{{ icon }}"></span>{% endif %}
+        {{ label }}
+    </a>
+{%- endmacro -%}
+
+{# Button medium #}
+{%- macro button_md(label, url, icon='', target='', color_class='btn-outline-primary') -%}
+    <a class="btn btn-block btn-md {{ color_class }} w-100 my-2" href="{{ url }}" {% if target %}target="{{ target }}"{% endif %}>
+        {% if icon %}<span class="iconify" data-icon="{{ icon }}"></span>{% endif %}
+        {{ label }}
+    </a>
+{%- endmacro -%}
+
+{# Button extra large #}
+{%- macro button_xl(label, url, icon='', target='', color_class='btn-outline-primary') -%}
+    <a class="btn btn-block btn-xl {{ color_class }} w-100 my-2" href="{{ url }}" {% if target %}target="{{ target }}"{% endif %}>
+        {% if icon %}<span class="iconify" data-icon="{{ icon }}"></span>{% endif %}
+        {{ label }}
+    </a>
+{%- endmacro -%}

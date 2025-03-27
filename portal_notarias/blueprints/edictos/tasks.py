@@ -15,6 +15,7 @@ from lib.exceptions import MyNotExistsError, MyUnknownError
 from lib.tasks import set_task_error, set_task_progress
 from portal_notarias.app import create_app
 from portal_notarias.blueprints.edictos.models import Edicto
+from portal_notarias.blueprints.edictos_acuses.models import EdictoAcuse
 from portal_notarias.extensions import database
 
 load_dotenv()  # Take environment variables from .env
@@ -33,6 +34,40 @@ database.app = app
 SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY", "")
 SENDGRID_FROM_EMAIL = os.getenv("SENDGRID_FROM_EMAIL", "")
 TIMEZONE = "America/Mexico_City"
+
+
+def republicacion_edictos(edicto_id: int, nueva_fecha: datetime) -> str:
+    """Republicacion de edictos según la fecha elegida"""
+    # Iniciar progreso
+    set_task_progress(0, f"Iniciando republicación del edicto {edicto_id}.")
+    # Obtener el edicto original
+    edicto_original = Edicto.query.get(edicto_id)
+    if not edicto_original:
+        mensaje_error = f"El edicto {edicto_id} no existe."
+        set_task_error(mensaje_error)
+        raise MyNotExistsError(mensaje_error)
+    # Validar que el edicto esté activo
+    if edicto_original.estatus != "A":
+        mensaje_error = f"El edicto {edicto_id} no está activo."
+        set_task_error(mensaje_error)
+        raise MyNotExistsError(mensaje_error)
+    # Crear el nuevo edicto para republicación
+    nuevo_edicto = Edicto(
+        descripcion=edicto_original.descripcion,
+        expediente=edicto_original.expediente,
+        numero_publicacion=edicto_original.numero_publicacion,
+        archivo=edicto_original.archivo,
+        url=edicto_original.url,
+        acuse_num=1,  # Reiniciar el contador de acuses
+        fecha=nueva_fecha.date(),  # Nueva fecha de publicación
+        estatus="A",  # Activar el nuevo edicto
+        autoridad_id=edicto_original.autoridad_id,
+        edicto_id_original=edicto_original.id,  # Relacionar con el original
+    ).save()
+    mensaje_final = f"Terminar republicacion del {nuevo_edicto.id}."
+    set_task_progress(100, mensaje_final)
+    bitacora.info(mensaje_final)
+    return mensaje_final
 
 
 def enviar_email_acuse_recibido(edicto_id: int) -> str:

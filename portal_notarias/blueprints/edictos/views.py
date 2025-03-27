@@ -2,18 +2,25 @@
 Edictos, vistas
 """
 
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, time, timedelta
 import json
 from urllib.parse import quote
 
-from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, flash, make_response, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
+from pytz import timezone
 from werkzeug.datastructures import CombinedMultiDict
+from werkzeug.exceptions import NotFound
 
 from lib.datatables import get_datatable_parameters, output_datatable_json
+from lib.exceptions import (
+    MyBucketNotFoundError,
+    MyFileNotFoundError,
+    MyNotValidParamError,
+)
 from lib.exceptions import MyAnyError
 from lib.google_cloud_storage import get_blob_name_from_url, get_media_type_from_filename, get_file_from_gcs
-from lib.safe_string import safe_expediente, safe_message, safe_numero_publicacion, safe_string
+from lib.safe_string import safe_clave, safe_expediente, safe_message, safe_numero_publicacion, safe_string
 from lib.storage import GoogleCloudStorage, NotAllowedExtesionError, NotConfiguredError, UnknownExtesionError
 from lib.time_to_text import dia_mes_ano
 from portal_notarias.blueprints.usuarios.decorators import permission_required
@@ -24,15 +31,23 @@ from portal_notarias.blueprints.distritos.models import Distrito
 from portal_notarias.blueprints.modulos.models import Modulo
 from portal_notarias.blueprints.permisos.models import Permiso
 from portal_notarias.blueprints.edictos.models import Edicto
-from portal_notarias.blueprints.edictos.forms import EdictoNewForm, EdictoNewAutoridadForm
+from portal_notarias.blueprints.edictos.forms import EdictoNewForm, EdictoNewAutoridadForm, EdictoEditForm
 from portal_notarias.blueprints.edictos_acuses.models import EdictoAcuse
 
-edictos = Blueprint("edictos", __name__, template_folder="templates")
+
+# Zona horaria
+TIMEZONE = "America/Mexico_City"
+local_tz = timezone(TIMEZONE)
+medianoche = time.min
 
 MODULO = "EDICTOS"
 
+DASHBOARD_CANTIDAD_DIAS = 1
 LIMITE_DIAS = 365  # Un anio
 LIMITE_ADMINISTRADORES_DIAS = 3650  # Administradores pueden manipular diez anios
+LIMITE_DIAS_ELIMINAR = LIMITE_DIAS_RECUPERAR = LIMITE_DIAS_EDITAR = 1
+
+edictos = Blueprint("edictos", __name__, template_folder="templates")
 
 
 @edictos.route("/edictos/acuses/<id_hashed>")
@@ -96,6 +111,8 @@ def datatable_json():
         consulta = consulta.filter(Edicto.fecha <= request.form["fecha_hasta"])
     if "descripcion" in request.form:
         consulta = consulta.filter(Edicto.descripcion.contains(safe_string(request.form["descripcion"])))
+    if "numero_publicacion" in request.form:
+        consulta = consulta.filter(Edicto.numero_publicacion.contains(request.form["numero_publicacion"]))
     # Ordenar y paginar
     registros = consulta.order_by(Edicto.fecha.desc()).offset(start).limit(rows_per_page).all()
     total = consulta.count()
@@ -110,11 +127,10 @@ def datatable_json():
         if resultado.edicto_id_original == 0:
             # Si es igual a 0, agregar la URL al diccionario
             detalle["url"] = url_for("edictos.detail", edicto_id=resultado.id)
-
         data.append(
             {
                 "fecha": resultado.fecha.strftime("%Y-%m-%d %H:%M:%S"),
-                "detalle": detalle,  # Se agrega el diccionario 'detalle' como un elemento del nuevo diccionario.
+                "detalle": detalle,
                 "expediente": resultado.expediente,
                 "numero_publicacion": resultado.numero_publicacion,
                 "archivo": {
@@ -154,11 +170,7 @@ def datatable_json_admin():
         except (IndexError, ValueError):
             pass
     if "numero_publicacion" in request.form:
-        try:
-            numero_publicacion = safe_numero_publicacion(request.form["numero_publicacion"])
-            consulta = consulta.filter_by(numero_publicacion=numero_publicacion)
-        except (IndexError, ValueError):
-            pass
+        consulta = consulta.filter(Edicto.numero_publicacion.contains(request.form["numero_publicacion"]))
     registros = consulta.order_by(Edicto.fecha.desc()).offset(start).limit(rows_per_page).all()
     total = consulta.count()
     # Elaborar datos para DataTable
@@ -449,6 +461,7 @@ def new():
             fecha=hoy_date,
             acuse_num=acuse_num,
             descripcion=descripcion,
+            numero_publicacion="1",  # Primera publicación siempre es "1"
         )
         edicto.save()
 
@@ -462,9 +475,6 @@ def new():
                     fecha=fecha_acuse,
                 )
                 acuse.save()
-
-        print("hoy_date:", hoy_date)
-        print("fecha_acuse_date:", fecha_acuse)
 
         # Subir a Google Cloud Storage
         es_exitoso = True
@@ -621,3 +631,329 @@ def new_for_autoridad(autoridad_id):
     form.autoridad.data = autoridad.descripcion
     form.fecha.data = hoy
     return render_template("edictos/new_for_autoridad.jinja2", form=form, autoridad=autoridad)
+
+
+@edictos.route("/edictos/edicion/<int:edicto_id>", methods=["GET", "POST"])
+@permission_required(MODULO, Permiso.MODIFICAR)
+def edit(edicto_id):
+    """Editar Edicto"""
+    edicto = Edicto.query.get_or_404(edicto_id)
+
+    # Validar autoridad
+    autoridad = edicto.autoridad
+    if autoridad.estatus != "A":
+        flash("La Notaría no esta activa.", "warning")
+        return redirect(url_for("edictos.list_active"))
+    if not autoridad.distrito.es_distrito_judicial:
+        flash("El Distrito no es jurisdiccional.", "warning")
+        return redirect(url_for("edictos.list_active"))
+    if not autoridad.es_notaria:
+        flash("La Notaria no tiene en verdadero el boleano que la define como notaria.", "warning")
+        return redirect(url_for("edictos.list_active"))
+    if autoridad.directorio_edictos is None or autoridad.directorio_edictos == "":
+        flash("La Notaria no tiene directorio para edictos.", "warning")
+        return redirect(url_for("edictos.list_active"))
+
+    # Si NO es administrador
+    if not (current_user.can_admin(MODULO)):
+        # Validar que le pertenezca
+        if current_user.autoridad_id != edicto.autoridad_id:
+            flash("No puede editar registros ajenos.", "warning")
+            return redirect(url_for("edictos.list_active"))
+        # Asegurar que edicto.creado tenga zona horaria
+        if edicto.creado.tzinfo is None:
+            edicto_creado = local_tz.localize(edicto.creado)  # Agregar la zona horaria si no la tiene
+        else:
+            edicto_creado = edicto.creado.astimezone(local_tz)  # Convertir a la zona horaria local si ya tiene una zona horaria
+        # Si fue creado hace más de LIMITE_DIAS_EDITAR
+        if edicto_creado < datetime.now(local_tz) - timedelta(days=LIMITE_DIAS_EDITAR):
+            flash(f"Ya no puede editar porque fue creado hace más de {LIMITE_DIAS_EDITAR} día.", "warning")
+            return redirect(url_for("edictos.detail", edicto_id=edicto.id))
+
+    # Obtener los acuses asociados al edicto
+    acuses = EdictoAcuse.query.filter_by(edicto_id=edicto.id).order_by(EdictoAcuse.fecha).all()
+
+    # Si viene el formulario
+    form = EdictoEditForm()
+    if form.validate_on_submit():
+        es_valido = True
+
+        # Validar la descripción
+        descripcion = safe_string(form.descripcion.data, save_enie=True)
+        if descripcion == "":
+            flash("La descripción es incorrecta.", "warning")
+            es_valido = False
+
+        # Guardar cambios en el edicto
+        edicto.descripcion = descripcion
+        edicto.save()
+
+        # Actualizar los acuses
+        for i, acuse in enumerate(acuses):
+            if i + 2 <= 5:
+                fecha_acuse_field = getattr(form, f"fecha_acuse_{i + 2}")
+                fecha_acuse = fecha_acuse_field.data
+                if fecha_acuse is None:
+                    flash("Falta una de las fechas de publicación.", "warning")
+                    es_valido = False
+                    break
+                if fecha_acuse < datetime.today().date():
+                    flash("La fecha de publicación no puede ser del pasado.", "warning")
+                    es_valido = False
+                    break
+                acuse.fecha = fecha_acuse
+                acuse.save()
+
+        if not es_valido:
+            return render_template("edictos/edit.jinja2", form=form, edicto=edicto)
+        # Registrar en la bitácora
+        bitacora = Bitacora(
+            modulo=Modulo.query.filter_by(nombre=MODULO).first(),
+            usuario=current_user,
+            descripcion=safe_message(f"Edicto {edicto.descripcion} actualizado."),
+            url=url_for("edictos.detail", edicto_id=edicto.id),
+        )
+        bitacora.save()
+        flash(bitacora.descripcion, "success")
+        return redirect(bitacora.url)
+
+    # Pre-llenar el formulario con los datos del edicto y los acuses
+    form.descripcion.data = edicto.descripcion
+    for i, acuse in enumerate(acuses):
+        if i + 2 <= 5:  # Asegurarse de que no exceda el número de campos de fecha en el formulario
+            fecha_acuse_field = getattr(form, f"fecha_acuse_{i + 2}")
+            fecha_acuse_field.data = acuse.fecha
+    return render_template("edictos/edit.jinja2", form=form, edicto=edicto)
+
+
+@edictos.route("/edictos/eliminar/<int:edicto_id>")
+@permission_required(MODULO, Permiso.CREAR)
+def delete(edicto_id):
+    """Eliminar Edicto"""
+    edicto = Edicto.query.get_or_404(edicto_id)
+    detalle_url = url_for("edictos.detail", edicto_id=edicto.id)
+    # Validar que se pueda eliminar
+    if edicto.estatus == "B":
+        flash("El edicto ya está eliminado.", "warning")
+        return redirect(detalle_url)
+
+    # Si es administrador, puede eliminar
+    if current_user.can_admin(MODULO):
+        for acuse in edicto.acuses_num:
+            acuse.delete()
+        edicto.delete()
+        # Eliminar los edictos_acuses asociados
+        bitacora = Bitacora(
+            modulo=Modulo.query.filter_by(nombre=MODULO).first(),
+            usuario=current_user,
+            descripcion=safe_message(f"Eliminado Edicto {edicto.descripcion}"),
+            url=detalle_url,
+        )
+        bitacora.save()
+        flash(bitacora.descripcion, "success")
+        return redirect(bitacora.url)
+
+    # Si NO le pertenece, mostrar mensaje y redirigir
+    if current_user.autoridad_id != edicto.autoridad_id:
+        flash("No puede eliminar porque no le pertenece.", "warning")
+        return redirect(detalle_url)
+
+    # Si fue creado hace más de LIMITE_DIAS_EDITAR
+    if edicto.creado >= datetime.now(local_tz) - timedelta(days=LIMITE_DIAS_ELIMINAR):
+        # Eliminar los edictos_acuses asociados
+        for acuse in edicto.acuse_num:
+            acuse.delete()
+        edicto.delete()
+        bitacora = Bitacora(
+            modulo=Modulo.query.filter_by(nombre=MODULO).first(),
+            usuario=current_user,
+            descripcion=safe_message(f"Eliminado Edicto {edicto.descripcion}"),
+            url=detalle_url,
+        )
+        bitacora.save()
+        flash(bitacora.descripcion, "success")
+        return redirect(bitacora.url)
+    # No se puede eliminar
+    flash(f"Ya no puede eliminar porque fue creado hace más de {LIMITE_DIAS_ELIMINAR} día.", "warning")
+    return redirect(detalle_url)
+
+
+@edictos.route("/edictos/recuperar/<int:edicto_id>")
+@permission_required(MODULO, Permiso.CREAR)
+def recover(edicto_id):
+    """Recuperar Edicto"""
+    edicto = Edicto.query.get_or_404(edicto_id)
+    detalle_url = url_for("edictos.detail", edicto_id=edicto.id)
+
+    # Validar que se pueda recuperar
+    if edicto.estatus == "A":
+        flash("No puede eliminar este Edicto porque ya está activo.", "success")
+        return redirect(detalle_url)
+
+    # Evitar que se recupere si ya existe una con la misma fecha
+    if Edicto.query.filter_by(autoridad=current_user.autoridad, fecha=edicto.fecha, estatus="A").first():
+        flash("No puede recuperar este Edicto porque ya existe uno activo con la misma fecha.", "warning")
+        return redirect(detalle_url)
+
+    # Definir la descripción para la bitácora
+    fecha_y_autoridad = f"{edicto.fecha.strftime('%Y-%m-%d')} de {edicto.autoridad.clave}"
+    descripcion = safe_message(f"Recuperado Edicto del {fecha_y_autoridad} por {current_user.email}")
+
+    # Si es administrador, puede recuperar
+    if current_user.can_admin(MODULO):
+        edicto.recover()
+        # Recuperar los edictos_acuses asociados
+        for acuse in edicto.acuses_num:
+            acuse.recover()
+        bitacora = Bitacora(
+            modulo=Modulo.query.filter_by(nombre=MODULO).first(),
+            usuario=current_user,
+            descripcion=descripcion,
+            url=detalle_url,
+        )
+        bitacora.save()
+        flash(bitacora.descripcion, "success")
+        return redirect(bitacora.url)
+
+    # Si NO le pertenece, mostrar mensaje y redirigir
+    if current_user.autoridad_id != edicto.autoridad_id:
+        flash("No puede recuperar porque no le pertenece.", "warning")
+        return redirect(detalle_url)
+
+    # Si fue creado hace menos del límite de días, puede recuperar
+    if edicto.creado >= datetime.now(local_tz) - timedelta(days=LIMITE_DIAS_RECUPERAR):
+        edicto.recover()
+        bitacora = Bitacora(
+            modulo=Modulo.query.filter_by(nombre=MODULO).first(),
+            usuario=current_user,
+            descripcion=descripcion,
+            url=detalle_url,
+        )
+        bitacora.save()
+        flash(bitacora.descripcion, "success")
+        return redirect(bitacora.url)
+
+    # No se puede recuperar
+    flash(f"No se puede recuperar porque fue creado hace más de {LIMITE_DIAS_RECUPERAR} día.", "warning")
+    return redirect(detalle_url)
+
+
+@edictos.route("/edictos/ver_archivo_pdf/<int:edicto_id>")
+def view_file_pdf(edicto_id):
+    """Ver archivo PDF de Edicto para insertarlo en un iframe en el detalle"""
+
+    # Consultar
+    edicto = Edicto.query.get_or_404(edicto_id)
+
+    # Obtener el contenido del archivo
+    try:
+        archivo = get_file_from_gcs(
+            bucket_name=current_app.config["CLOUD_STORAGE_DEPOSITO_EDICTOS"],
+            blob_name=get_blob_name_from_url(edicto.url),
+        )
+    except (MyBucketNotFoundError, MyFileNotFoundError, MyNotValidParamError) as error:
+        raise NotFound("No se encontró el archivo.") from error
+
+    # Entregar el archivo
+    response = make_response(archivo)
+    response.headers["Content-Type"] = "application/pdf"
+    return response
+
+
+@edictos.route("/edictos/tablero")
+@permission_required(MODULO, Permiso.VER)
+def dashboard():
+    """Tablero de Edictos"""
+
+    # Por defecto
+    autoridad = None
+    titulo = "Tablero de Edictos"
+
+    # Si la autoridad del usuario es jurisdiccional o es notaria, se impone
+    if current_user.autoridad.es_jurisdiccional or current_user.autoridad.es_notaria:
+        autoridad = current_user.autoridad
+        titulo = f"Tablero de Edictos de {autoridad.clave}"
+
+    # Si aun no hay autoridad y viene autoridad_id o autoridad_clave en la URL
+    if autoridad is None:
+        try:
+            if "autoridad_id" in request.args:
+                autoridad = Autoridad.query.get(int(request.args.get("autoridad_id")))
+            elif "autoridad_clave" in request.args:
+                autoridad = Autoridad.query.filter_by(clave=safe_clave(request.args.get("autoridad_clave"))).first()
+            if autoridad:
+                titulo = f"{titulo} de {autoridad.clave}"
+        except (TypeError, ValueError):
+            pass
+
+    # Si viene fecha_desde en la URL, validar
+    fecha_desde = None
+    try:
+        if "fecha_desde" in request.args:
+            fecha_desde = datetime.strptime(request.args.get("fecha_desde"), "%Y-%m-%d").date()
+    except (TypeError, ValueError):
+        pass
+
+    # Si viene fecha_hasta en la URL, validar
+    fecha_hasta = None
+    try:
+        if "fecha_hasta" in request.args:
+            fecha_hasta = datetime.strptime(request.args.get("fecha_hasta"), "%Y-%m-%d").date()
+    except (TypeError, ValueError):
+        pass
+
+    # Si fecha_desde y fecha_hasta están invertidas, corregir
+    if fecha_desde and fecha_hasta and fecha_desde > fecha_hasta:
+        fecha_desde, fecha_hasta = fecha_hasta, fecha_desde
+
+    # Si viene fecha_desde y falta fecha_hasta, calcular fecha_hasta sumando fecha_desde y DASHBOARD_CANTIDAD_DIAS
+    if fecha_desde and not fecha_hasta:
+        fecha_hasta = fecha_desde + timedelta(days=DASHBOARD_CANTIDAD_DIAS)
+
+    # Si viene fecha_hasta y falta fecha_desde, calcular fecha_desde restando fecha_hasta y DASHBOARD_CANTIDAD_DIAS
+    if fecha_hasta and not fecha_desde:
+        fecha_desde = fecha_hasta - timedelta(days=DASHBOARD_CANTIDAD_DIAS)
+
+    # Si no viene fecha_desde ni tampoco fecha_hasta, pero viene cantidad_dias en la URL, calcular fecha_desde y fecha_hasta
+    if not fecha_desde and not fecha_hasta:
+        cantidad_dias = DASHBOARD_CANTIDAD_DIAS  # Por defecto
+        try:
+            if "cantidad_dias" in request.args:
+                cantidad_dias = int(request.args.get("cantidad_dias"))
+        except (TypeError, ValueError):
+            cantidad_dias = DASHBOARD_CANTIDAD_DIAS
+        fecha_desde = datetime.now().date() - timedelta(days=cantidad_dias)
+        fecha_hasta = datetime.now().date()
+
+    # Definir el titulo
+    titulo = f"{titulo} desde {fecha_desde.strftime('%Y-%m-%d')} hasta {fecha_hasta.strftime('%Y-%m-%d')}"
+
+    # Si no hay autoridad
+    if autoridad is None:
+        return render_template(
+            "edictos/dashboard.jinja2",
+            autoridad=None,
+            filtros=json.dumps(
+                {
+                    "fecha_desde": fecha_desde.strftime("%Y-%m-%d"),
+                    "fecha_hasta": fecha_hasta.strftime("%Y-%m-%d"),
+                    "estatus": "A",
+                }
+            ),
+            titulo=titulo,
+        )
+
+    # Entregar dashboard.jinja2
+    return render_template(
+        "edictos/dashboard.jinja2",
+        autoridad=autoridad,
+        filtros=json.dumps(
+            {
+                "autoridad_id": autoridad.id,
+                "fecha_desde": fecha_desde.strftime("%Y-%m-%d"),
+                "fecha_hasta": fecha_hasta.strftime("%Y-%m-%d"),
+                "estatus": "A",
+            }
+        ),
+        titulo=titulo,
+    )

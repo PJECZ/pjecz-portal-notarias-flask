@@ -22,9 +22,14 @@
         {% if current_user.can_insert('EDICTOS') and current_user.autoridad_id == edicto.autoridad_id %}
             {{ topbar.button_upload('Subir', url_for('edictos.new')) }}
         {% endif %}
-        {# {% if current_user.can_admin('EDICTOS') or (current_user.can_edit('EDICTOS') and edicto.autoridad_id == current_user.autoridad_id) %}
+        {% if current_user.can_admin('EDICTOS') or (current_user.can_edit('EDICTOS') and edicto.autoridad_id == current_user.autoridad_id) %}
             {{ topbar.button_edit('Editar', url_for('edictos.edit', edicto_id=edicto.id)) }}
-        {% endif %} #}
+        {% endif %}
+        {# Los usuarios con permiso para insertar pueden eliminar y recuperar #}
+        {% if current_user.can_insert('EDICTOS') %}
+            {% if edicto.estatus == 'A' %}{{ topbar.button_delete('Eliminar', url_for('edictos.delete', edicto_id=edicto.id)) }}{% endif %}
+            {% if edicto.estatus == 'B' %}{{ topbar.button_recover('Recuperar', url_for('edictos.recover', edicto_id=edicto.id)) }}{% endif %}
+        {% endif %}
     {% endcall %}
 {% endblock %}
 
@@ -33,20 +38,21 @@
         {{ detail.label_value_big('Descripción', edicto.descripcion) }}
         {{ detail.label_value('Distrito', edicto.autoridad.distrito.nombre) }}
         {{ detail.label_value('Notaria', edicto.autoridad.descripcion) }}
-        {{ detail.label_value('Publicaciones', edicto.acuse_num) }}
-        {{ detail.label_value('Creado', moment(edicto.creado).format('llll')) }}
+        {{ detail.label_value('Número de publicación', edicto.numero_publicacion) }}
+        {{ detail.label_value('Veces a publicar', edicto.acuse_num) }}
+        {{ detail.label_value('Fecha de publicación', edicto.fecha) }}
         <div class="row mt-2">
             <div class="col-md-6">
-                {{ detail.button_md('Enlace público para descargar PDF', edicto.descargar_url, 'mdi:download', '_blank') }}
+                {{ detail.button_md('Enlace público para descargar PDF', edicto.descargar_url, 'mdi:web', '_blank') }}
             </div>
             <div class="col-md-6">
-                {{ detail.button_md('Ver el Acuse', url_for('edictos.checkout', id_hashed=edicto.encode_id()), 'mdi:download', '_blank') }}
+                {{ detail.button_md('Ver el Acuse', url_for('edictos.checkout', id_hashed=edicto.encode_id()), 'mdi:eye', '_blank') }}
             </div>
         </div>
     {% endcall %}
     {# Listado de acuses #}
     {% if current_user.can_view('EDICTOS ACUSES') %}
-        {% call detail.card('Republicación de Edictos' ) %}
+        {% call detail.card('Publicaciones' ) %}
             <table id="edictos_acuses_datatable" class="table display nowrap" style="width:100%">
                 <thead>
                     <tr>
@@ -58,10 +64,22 @@
             </table>
         {% endcall %}
     {% endif %}
+    {% call detail.card() %}
+        <object data="{{ url_for('edictos.view_file_pdf', edicto_id=edicto.id) }}" type="application/pdf" width="100%" height="600px">
+            <p class="mb-0">El navegador no puede mostrar el archivo PDF o no existe en el depósito.</p>
+        </object>
+    {% endcall %}
 {% endblock %}
 
 {% block custom_javascript %}
     {{ detail.config_datatable() }}
+    {# Los usuarios que pueden insertar registros tienen permiso para eliminar y recuperar #}
+    {% set descrito = 'el edicto del ' + edicto.fecha.strftime("%Y-%m-%d") + ' de ' + edicto.autoridad.descripcion_corta %}
+    {% if current_user.can_insert('EDICTOS') %}
+        {% if edicto.estatus == 'A' %}{{ modals.custom_javascript_delete('Eliminar', '¿Eliminar ' + descrito + '?') }}{% endif %}
+        {% if edicto.estatus == 'B' %}{{ modals.custom_javascript_recover('Recuperar', '¿Recuperar ' + descrito + '?') }}{% endif %}
+    {% endif %}
+   
     {% if current_user.can_view('EDICTOS ACUSES') %}
         <script>
             configDataTable['ajax']['url'] = '/edictos_acuses/datatable_json';
@@ -104,5 +122,5 @@
             $('#edictos_acuses_datatable').DataTable(configDataTable);
         </script>
     {% endif %}
-    {{ detail.moment_js(moment) }}
+    {# {{ detail.moment_js(moment) }} #}
 {% endblock %}

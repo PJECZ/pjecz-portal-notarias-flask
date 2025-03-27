@@ -14,6 +14,9 @@
             {% if current_user.can_edit('EDICTOS') %}
                 {{ topbar.button_upload('Subir', url_for('edictos.new')) }}
             {% endif %}
+            {{ topbar.button_dashboard('Tablero', url_for('edictos.dashboard') + '?autoridad_clave=' + autoridad.clave) }}
+        {% else %}
+            {{ topbar.button_dashboard('Tablero', url_for('edictos.dashboard')) }}
         {% endif %}
     {% endcall %}
 {% endblock %}
@@ -55,7 +58,7 @@
                 <tr>
                     <th>Fechas</th>
                     <th>Descripción</th>
-                    <th>Enlace público</th>
+                    <th>Número de publicación</th>
                 </tr>
             </thead>
         </table>
@@ -74,7 +77,7 @@
         configDTEdictos['columns'] = [
             { data: "fecha" },
             { data: "detalle" },
-            { data: "archivo" }
+            { data: "numero_publicacion" },
         ];
         configDTEdictos['columnDefs'] = [
             {
@@ -88,7 +91,7 @@
                 targets: 1, // descripcion
                 data: null,
                 render: function(data, type, row, meta) {
-                    var descripcion = data.descripcion.length > 32 ? data.descripcion.substr(0, 32) + '…' : data.descripcion;
+                    var descripcion = data.descripcion.length > 80 ? data.descripcion.substr(0, 80) + '…' : data.descripcion;
                     var content = data.url ? '<a href="' + data.url + '">' + descripcion + '</a>' : descripcion;
                     if (data.url) {
                         return '<span title="' + descripcion + '">' + content + '</span>';
@@ -97,13 +100,13 @@
                     }
                 }
             },
-            {
+            /*{
                 targets: 2, // archivo
                 data: null,
                 render: function(data, type, row, meta) {
                     return '<a href="' + data.descargar_url + '" target="_blank">PDF</a>';
                 }
-            }
+            }*/
         ];
         // Filtros Edictos
         const filtrosEdictos = new FiltrosDataTable('#edictos_datatable', configDTEdictos);
