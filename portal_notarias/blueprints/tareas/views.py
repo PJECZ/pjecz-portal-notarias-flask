@@ -52,6 +52,7 @@ def datatable_json():
     for resultado in registros:
         data.append(
             {
+                "creado": resultado.creado.strftime("%Y-%m-%dT%H:%M:%S"),
                 "detalle": {
                     "comando": resultado.comando,
                     "url": url_for("tareas.detail", tarea_id=resultado.id),
@@ -64,7 +65,6 @@ def datatable_json():
                         url_for("usuarios.detail", usuario_id=resultado.usuario_id) if current_user.can_view("USUARIOS") else ""
                     ),
                 },
-                "creado": resultado.creado.strftime("%Y-%m-%d %H:%M:%S"),
             }
         )
     # Entregar JSON

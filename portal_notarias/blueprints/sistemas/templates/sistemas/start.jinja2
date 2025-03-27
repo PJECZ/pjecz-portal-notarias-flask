@@ -7,37 +7,32 @@
 {% block title %}Portal de Notarías {% endblock %}
 
 {% block topbar_actions %}
-    {{ topbar.page('Portal de Notarías ' + current_user.nombre) }}
+    {{ topbar.page('Bienvenido ' + current_user.nombre) }}
 {% endblock %}
 
 {% block content %}
     {# Detalle de la ultima quincena #}
-    {% call detail.card(title='Bienvenidos ') %}
-        <div class="container">
+    {% call detail.card() %}
+        {% if mostrar_notaria %}
+            <p>El Portal de Notarías es una plataforma que permite a las notarías publicar sus Edictos en el sitio web del
+            Poder Judicial del Estado de Coahuila de Zaragoza. </p>
+            <p>Mientras que la cuenta de correo electrónico edictos@pjecz.gob.mx recibe los mensajes con los Edictos como archivos adjuntos,
+            éste trabaja diario y las respuestas automáticas tardan en llegar.</p>
+            <p>Por lo anterior, se recomienda a las notarías que utilicen el Portal de Notarías para publicar sus Edictos, ya que éste
+            es un sistema en línea que permite a las notarías publicar sus Edictos de manera inmediata y sin necesidad de esperar a que
+            se reciban los correos electrónicos.</p>
+            <a href="{{ url_for('edictos.new') }}" class="btn d-grid gap-2 btn-primary btn-xl btn-tickets ml-auto">Subir Edicto</a>
+        {% else %}
             <div class="row">
-                {% if mostrar_notaria %}
-                    <div class="col col-sm-12 mb-2 mt-5">
-                        <p class="fw-bold">¡Bienvenidos y bienvenidas al personal notarial!</p>
-                        <p>
-                            {# Este espacio está diseñado para que las notarías puedan realizar de manera fácil y eficiente la publicación y republicación de sus edictos para poder gestionarlas.                      #}
-                            Este espacio ha sido diseñado pensando en ustedes, con el objetivo de simplificar y agilizar el proceso de publicación y republicación de edictos. 
-                            Aquí encontrarán una herramienta eficiente y fácil de usar para gestionar sus edictos de manera rápida y efectiva. 
-                            Nuestra plataforma les permite realizar un seguimiento del estado de sus edictos, todo en un entorno seguro y confidencial. 
-                            Les invitamos a explorar todas las funcionalidades que hemos desarrollado para facilitar su trabajo."
-                        </p>
-                        <a href="{{ url_for('edictos.new') }}" class="btn d-grid gap-2 btn-primary btn-xl btn-tickets ml-auto">Subir Edicto</a>
-                    </div>
-                {% else %}
-                    <div class="col-md-6 col-sm-12 mb-2">
-                        <img src="https://storage.googleapis.com/pjecz-informatica/static/images/no-entrar-portal-notarias.jpg" class="img-fluid mb-2">
-                    </div>
-                    <div class="col-md-6 col-sm-12" style="padding-top: 210px; margin-right: auto; margin-left: auto">
-                        <p class="text-danger fs-3">No tienes permiosos para esta plataforma, favor de entrar a la plataforma correspondiente</p>
-                        <a href="http://justiciadigital.gob.mx/" class="btn d-grid gap-2 btn-primary btn-xl ml-auto">Justicia Digital</a>
-                    </div>
-                {% endif %}
+                <div class="col-md-6 col-sm-12 mb-2">
+                    <img src="https://storage.googleapis.com/pjecz-informatica/static/images/no-entrar-portal-notarias.jpg" class="img-fluid mb-2">
+                </div>
+                <div class="col-md-6 col-sm-12" style="padding-top: 210px; margin-right: auto; margin-left: auto">
+                    <p class="text-danger fs-3">No tienes permiosos para esta plataforma, favor de entrar a la plataforma correspondiente</p>
+                    <a href="http://justiciadigital.gob.mx/" class="btn d-grid gap-2 btn-primary btn-xl ml-auto">Justicia Digital</a>
+                </div>
             </div>
-        </div>
+        {% endif %}
     {% endcall %}
     {% if es_notario %}
         <!-- Publicaciones de la propia notaria -->
@@ -100,6 +95,4 @@
 {% endblock %}
 
 {% block custom_javascript %}
-    <!-- Moment.js -->
-    {{ detail.moment_js(moment) }}
 {% endblock %}

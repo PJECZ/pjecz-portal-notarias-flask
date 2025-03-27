@@ -17,7 +17,7 @@
 {% endblock %}
 
 {% block topbar_actions %}
-    {% call topbar.page_buttons('Edicto ' + edicto.descripcion | string ) %}
+    {% call topbar.page_buttons('Edicto') %}
         {{ topbar.button_previous('Edictos', url_for('edictos.list_active')) }}
         {% if current_user.can_insert('EDICTOS') and current_user.autoridad_id == edicto.autoridad_id %}
             {{ topbar.button_upload('Subir', url_for('edictos.new')) }}
@@ -35,7 +35,7 @@
 
 {% block content %}
     {% call detail.card(estatus=edicto.estatus) %}
-        {{ detail.label_value_big('Descripción', edicto.descripcion) }}
+        {{ detail.label_value('Descripción', edicto.descripcion) }}
         {{ detail.label_value('Distrito', edicto.autoridad.distrito.nombre) }}
         {{ detail.label_value('Notaria', edicto.autoridad.descripcion) }}
         {{ detail.label_value('Número de publicación', edicto.numero_publicacion) }}
@@ -79,7 +79,7 @@
         {% if edicto.estatus == 'A' %}{{ modals.custom_javascript_delete('Eliminar', '¿Eliminar ' + descrito + '?') }}{% endif %}
         {% if edicto.estatus == 'B' %}{{ modals.custom_javascript_recover('Recuperar', '¿Recuperar ' + descrito + '?') }}{% endif %}
     {% endif %}
-   
+
     {% if current_user.can_view('EDICTOS ACUSES') %}
         <script>
             configDataTable['ajax']['url'] = '/edictos_acuses/datatable_json';

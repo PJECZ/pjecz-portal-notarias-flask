@@ -7,7 +7,7 @@ from typing import List, Optional
 
 from flask import current_app
 from flask_login import UserMixin
-from sqlalchemy import ForeignKey, String
+from sqlalchemy import Enum, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from lib.universal_mixin import UniversalMixin
@@ -20,6 +20,13 @@ from portal_notarias.extensions import database, pwd_context
 class Usuario(database.Model, UserMixin, UniversalMixin):
     """Usuario"""
 
+    WORKSPACES = {
+        "BUSINESS STARTED": "Business Started",
+        "BUSINESS STANDARD": "Business Standard",
+        "COAHUILA": "Coahuila",
+        "EXTERNO": "Externo",
+    }
+
     # Nombre de la tabla
     __tablename__ = "usuarios"
 
@@ -28,20 +35,36 @@ class Usuario(database.Model, UserMixin, UniversalMixin):
 
     # Claves foráneas
     autoridad_id: Mapped[int] = mapped_column(ForeignKey("autoridades.id"))
-    autoridad: Mapped["Autoridad"] = relationship("Autoridad", back_populates="usuarios")
+    autoridad: Mapped["Autoridad"] = relationship(back_populates="usuarios")
 
     # Columnas
     email: Mapped[str] = mapped_column(String(256), unique=True, index=True)
     nombres: Mapped[str] = mapped_column(String(256))
     apellido_paterno: Mapped[str] = mapped_column(String(256))
     apellido_materno: Mapped[str] = mapped_column(String(256))
-    curp: Mapped[str] = mapped_column(String(18))
-    puesto: Mapped[str] = mapped_column(String(256))
+    curp: Mapped[str] = mapped_column(String(18), default="")
+    puesto: Mapped[str] = mapped_column(String(256), default="")
+    efirma_registro_id: Mapped[Optional[int]]
+    workspace: Mapped[str] = mapped_column(Enum(*WORKSPACES, name="usuarios_workspaces", native_enum=False), index=True)
+
+    # Columnas que NO aparecen en nuevo o editar porque vienen de otros lugares
+    email_personal: Mapped[str] = mapped_column(String(256), default="")
+    telefono: Mapped[str] = mapped_column(String(48), default="")
+    telefono_celular: Mapped[str] = mapped_column(String(48), default="")
+    extension: Mapped[str] = mapped_column(String(24), default="")
+    fotografia_url: Mapped[str] = mapped_column(String(512), default="")
+
+    # Columnas que NO deben ser expuestas
     api_key: Mapped[Optional[str]] = mapped_column(String(128))
     api_key_expiracion: Mapped[Optional[datetime]]
     contrasena: Mapped[Optional[str]] = mapped_column(String(256))
 
     # Hijos
+    # arc_documentos_bitacoras: Mapped[List["ArcDocumentoBitacora"]] = relationship(back_populates="usuario")
+    # arc_remesas: Mapped[List["ArcRemesa"]] = relationship(back_populates="usuario_asignado")
+    # arc_solicitudes_asignado: Mapped[List["ArcSolicitud"]] = relationship(back_populates="usuario_asignado")
+    # arc_solicitudes_bitacoras: Mapped[List["ArcSolicitudBitacora"]] = relationship(back_populates="usuario")
+    # arc_remesas_bitacoras: Mapped[List["ArcRemesaBitacora"]] = relationship(back_populates="usuario")
     bitacoras: Mapped[List["Bitacora"]] = relationship("Bitacora", back_populates="usuario")
     entradas_salidas: Mapped[List["EntradaSalida"]] = relationship("EntradaSalida", back_populates="usuario")
     tareas: Mapped[List["Tarea"]] = relationship("Tarea", back_populates="usuario")
@@ -146,6 +169,10 @@ class Usuario(database.Model, UserMixin, UniversalMixin):
     def get_tasks_in_progress(self):
         """Obtener tareas"""
         return Tarea.query.filter_by(usuario=self, ha_terminado=False).all()
+
+    def get_task_in_progress(self, comando):
+        """Obtener progreso de una tarea"""
+        return Tarea.query.filter_by(comando=comando, usuario=self, ha_terminado=False).first()
 
     def __repr__(self):
         """Representación"""

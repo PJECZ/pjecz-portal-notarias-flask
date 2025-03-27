@@ -13,9 +13,7 @@ from portal_notarias.blueprints.distritos.views import distritos
 from portal_notarias.blueprints.edictos.views import edictos
 from portal_notarias.blueprints.edictos_acuses.views import edictos_acuses
 from portal_notarias.blueprints.entradas_salidas.views import entradas_salidas
-from portal_notarias.blueprints.estados.views import estados
 from portal_notarias.blueprints.modulos.views import modulos
-from portal_notarias.blueprints.municipios.views import municipios
 from portal_notarias.blueprints.permisos.views import permisos
 from portal_notarias.blueprints.roles.views import roles
 from portal_notarias.blueprints.sistemas.views import sistemas
@@ -45,9 +43,7 @@ def create_app():
     app.register_blueprint(edictos)
     app.register_blueprint(edictos_acuses)
     app.register_blueprint(entradas_salidas)
-    app.register_blueprint(estados)
     app.register_blueprint(modulos)
-    app.register_blueprint(municipios)
     app.register_blueprint(permisos)
     app.register_blueprint(roles)
     app.register_blueprint(sistemas)

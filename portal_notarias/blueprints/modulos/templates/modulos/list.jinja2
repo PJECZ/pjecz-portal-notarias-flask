@@ -6,9 +6,6 @@
 
 {% block topbar_actions %}
     {% call topbar.page_buttons(titulo) %}
-        {% if current_user.can_view('PERMISOS') %}
-            {{ topbar.button('Permisos', url_for('permisos.list_active'), 'mdi:lock') }}
-        {% endif %}
         {% if current_user.can_view('ROLES') %}
             {{ topbar.button('Roles', url_for('roles.list_active'), 'mdi:gamepad') }}
         {% endif %}
@@ -18,9 +15,6 @@
         {% if current_user.can_admin('MODULOS') %}
             {% if estatus == 'A' %}{{ topbar.button_list_inactive('Inactivos', url_for('modulos.list_inactive')) }}{% endif %}
             {% if estatus == 'B' %}{{ topbar.button_list_active('Activos', url_for('modulos.list_active')) }}{% endif %}
-        {% endif %}
-        {% if current_user.can_insert('MODULOS') %}
-            {{ topbar.button_new('Nuevo Módulo', url_for('modulos.new')) }}
         {% endif %}
     {% endcall %}
 {% endblock %}
@@ -48,10 +42,14 @@
         <table id="modulos_datatable" class="table {% if estatus == 'B'%}table-dark{% endif %} display nowrap" style="width:100%">
             <thead>
                 <tr>
-                    <th>Nombres</th>
-                    <th>Iconos</th>
-                    <th>En menú</th>
-                    <th>En P. Notarías</th>
+                    <th>Nombre</th>
+                    <th>Icono</th>
+                    <th>Menú</th>
+                    <th title="Portal Can Mayor (Archivo)">P.C.M.</th>
+                    <th title="Portal Carina (Exhortos)">P.C.</th>
+                    <th title="Plataforma Hércules (Plataforma Web)">P.H.</th>
+                    <th title="Plataforma Web">P.W.</th>
+                    <th title="Portal Notarías">P.N.</th>
                 </tr>
             </thead>
         </table>
@@ -71,7 +69,11 @@
             { data: 'detalle' },
             { data: 'icono' },
             { data: 'en_navegacion' },
-            { data: 'en_portal_notarias' },
+            { data: 'en_plataforma_portal_notarias' },
+            { data: 'en_plataforma_carina' },
+            { data: 'en_plataforma_hercules' },
+            { data: 'en_plataforma_web' },
+            { data: 'en_portal_notarias' }
         ];
         configDataTable['columnDefs'] = [
             {
@@ -89,13 +91,13 @@
                 }
             },
             {
-                targets: [2,3], // en_navegacion, en_portal_notarias
+                targets: [2, 3, 4, 5, 6, 7], // de en_navegacion y todos los en_
                 data: null,
                 render: function(data, type, row, meta) {
                     if (data) {
-                        return 'SI';
+                        return '<span class="iconify" data-icon="mdi:checkbox-marked" style="font-size: 1.4em"></span>';
                     }
-                    return '';
+                    return '<span class="iconify text-secondary" data-icon="mdi:checkbox-blank-outline" style="font-size: 1.4em"></span>';
                 }
             }
         ];

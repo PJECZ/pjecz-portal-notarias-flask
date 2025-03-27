@@ -105,15 +105,17 @@
 {%- endmacro -%}
 
 {# Detail boolean #}
-{%- macro label_value_boolean(label, value) -%}
-    <div class="row">
-        <div class="col-md-3 text-end">
-            {{ label }}
+{%- macro label_value_boolean(label, value, ignore_is_false=False) -%}
+    {% if ignore_is_false == False or (ignore_is_false and value) %}
+        <div class="row">
+            <div class="col-md-3 text-end">
+                {{ label }}
+            </div>
+            <div class="col-md-9">
+                {% if value %}<strong>Sí</strong>{% else %}No{% endif %}
+            </div>
         </div>
-        <div class="col-md-9">
-            {% if value %}<strong>Sí</strong>{% else %}No{% endif %}
-        </div>
-    </div>
+    {% endif %}
 {%- endmacro -%}
 
 {# JavaScript Datatable #}
@@ -180,13 +182,6 @@
     </script>
 {%- endmacro -%}
 
-{# Moment.js #}
-{%- macro moment_js(moment) -%}
-    <!-- Moment.js -->
-    {{ moment.include_moment() }}
-    {{ moment.lang('es-mx') }}
-{%- endmacro -%}
-
 {# Mosaic #}
 {%- macro mosaics(title='') -%}
     <div class="container px-2">
@@ -211,23 +206,25 @@
 {%- endmacro -%}
 
 {# Button small #}
-{%- macro button_sm(label, url, icon='', target='', color_class='btn-success') -%}
-    <a class="btn btn-block btn-sm {{ color_class }} w-100 mb-2" href="{{ url }}" {% if target %}target="{{ target }}"{% endif %}>
+{%- macro button_sm(label, url, icon='', target='', color_class='btn-outline-primary') -%}
+    <a class="btn btn-block btn-sm {{ color_class }} w-100 my-2" href="{{ url }}" {% if target %}target="{{ target }}"{% endif %}>
         {% if icon %}<span class="iconify" data-icon="{{ icon }}"></span>{% endif %}
         {{ label }}
     </a>
 {%- endmacro -%}
 
 {# Button medium #}
-{%- macro button_md(label, url, icon='', target='', color_class='btn-success') -%}
-    <a class="btn btn-block btn-md {{ color_class }} w-100 mb-2" href="{{ url }}" {% if target %}target="{{ target }}"{% endif %}>
-        <span class="iconify" data-icon="{{ icon }}"></span> {{ label }}
+{%- macro button_md(label, url, icon='', target='', color_class='btn-outline-primary') -%}
+    <a class="btn btn-block btn-md {{ color_class }} w-100 my-2" href="{{ url }}" {% if target %}target="{{ target }}"{% endif %}>
+        {% if icon %}<span class="iconify" data-icon="{{ icon }}"></span>{% endif %}
+        {{ label }}
     </a>
 {%- endmacro -%}
 
 {# Button extra large #}
-{%- macro button_xl(label, url, icon='', target='', color_class='btn-success') -%}
-    <a class="btn btn-block btn-xl {{ color_class }} w-100 mb-2" href="{{ url }}" {% if target %}target="{{ target }}"{% endif %}>
-        <span class="iconify" data-icon="{{ icon }}"></span> {{ label }}
+{%- macro button_xl(label, url, icon='', target='', color_class='btn-outline-primary') -%}
+    <a class="btn btn-block btn-xl {{ color_class }} w-100 my-2" href="{{ url }}" {% if target %}target="{{ target }}"{% endif %}>
+        {% if icon %}<span class="iconify" data-icon="{{ icon }}"></span>{% endif %}
+        {{ label }}
     </a>
 {%- endmacro -%}

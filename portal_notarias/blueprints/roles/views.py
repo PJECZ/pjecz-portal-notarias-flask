@@ -4,15 +4,12 @@ Roles, vistas
 
 import json
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from lib.datatables import get_datatable_parameters, output_datatable_json
 from lib.safe_string import safe_message, safe_string
-from portal_notarias.blueprints.bitacoras.models import Bitacora
-from portal_notarias.blueprints.modulos.models import Modulo
 from portal_notarias.blueprints.permisos.models import Permiso
-from portal_notarias.blueprints.roles.forms import RolForm
 from portal_notarias.blueprints.roles.models import Rol
 from portal_notarias.blueprints.usuarios.decorators import permission_required
 
@@ -90,113 +87,3 @@ def detail(rol_id):
     """Detalle de un Rol"""
     rol = Rol.query.get_or_404(rol_id)
     return render_template("roles/detail.jinja2", rol=rol)
-
-
-@roles.route("/roles/nuevo", methods=["GET", "POST"])
-@permission_required(MODULO, Permiso.CREAR)
-def new():
-    """Nuevo Rol"""
-    form = RolForm()
-    if form.validate_on_submit():
-        # Validar que el nombre no se repita
-        nombre = safe_string(form.nombre.data, save_enie=True)
-        if Rol.query.filter_by(nombre=nombre).first():
-            flash("El nombre ya está en uso. Debe de ser único.", "warning")
-            return render_template("roles/new.jinja2", form=form)
-        # Guardar
-        rol = Rol(nombre=nombre)
-        rol.save()
-        bitacora = Bitacora(
-            modulo=Modulo.query.filter_by(nombre=MODULO).first(),
-            usuario=current_user,
-            descripcion=safe_message(f"Nuevo Rol {rol.nombre}"),
-            url=url_for("roles.detail", rol_id=rol.id),
-        )
-        bitacora.save()
-        flash(bitacora.descripcion, "success")
-        return redirect(bitacora.url)
-    return render_template("roles/new.jinja2", form=form)
-
-
-@roles.route("/roles/edicion/<int:rol_id>", methods=["GET", "POST"])
-@permission_required(MODULO, Permiso.MODIFICAR)
-def edit(rol_id):
-    """Editar Rol"""
-    rol = Rol.query.get_or_404(rol_id)
-    form = RolForm()
-    if form.validate_on_submit():
-        es_valido = True
-        # Si cambia el nombre verificar que no este en uso
-        nombre = safe_string(form.nombre.data, save_enie=True)
-        if rol.nombre != nombre:
-            rol_existente = Rol.query.filter_by(nombre=nombre).first()
-            if rol_existente and rol_existente.id != rol.id:
-                es_valido = False
-                flash("El nombre ya está en uso. Debe de ser único.", "warning")
-        # Si es valido actualizar
-        if es_valido:
-            rol.nombre = nombre
-            rol.save()
-            bitacora = Bitacora(
-                modulo=Modulo.query.filter_by(nombre=MODULO).first(),
-                usuario=current_user,
-                descripcion=safe_message(f"Editado Rol {rol.nombre}"),
-                url=url_for("roles.detail", rol_id=rol.id),
-            )
-            bitacora.save()
-            flash(bitacora.descripcion, "success")
-            return redirect(bitacora.url)
-    form.nombre.data = rol.nombre
-    return render_template("roles/edit.jinja2", form=form, rol=rol)
-
-
-@roles.route("/roles/eliminar/<int:rol_id>")
-@permission_required(MODULO, Permiso.ADMINISTRAR)
-def delete(rol_id):
-    """Eliminar Rol"""
-    rol = Rol.query.get_or_404(rol_id)
-    if rol.estatus == "A":
-        # Dar de baja el rol
-        rol.delete()
-        # Dar de baja los permisos del rol
-        for permiso in rol.permisos:
-            permiso.delete()
-        # Dar de baja los usuarios del rol
-        for usuario_rol in rol.usuarios_roles:
-            usuario_rol.delete()
-        # Guardar en la bitacora
-        bitacora = Bitacora(
-            modulo=Modulo.query.filter_by(nombre=MODULO).first(),
-            usuario=current_user,
-            descripcion=safe_message(f"Eliminado Rol {rol.nombre}"),
-            url=url_for("roles.detail", rol_id=rol.id),
-        )
-        bitacora.save()
-        flash(bitacora.descripcion, "success")
-    return redirect(url_for("roles.detail", rol_id=rol.id))
-
-
-@roles.route("/roles/recuperar/<int:rol_id>")
-@permission_required(MODULO, Permiso.ADMINISTRAR)
-def recover(rol_id):
-    """Recuperar Rol"""
-    rol = Rol.query.get_or_404(rol_id)
-    if rol.estatus == "B":
-        # Dar de alta el rol
-        rol.recover()
-        # Dar de alta los permisos del rol
-        for permiso in rol.permisos:
-            permiso.recover()
-        # Dar de alta los usuarios del rol
-        for usuario_rol in rol.usuarios_roles:
-            usuario_rol.recover()
-        # Guardar en la bitacora
-        bitacora = Bitacora(
-            modulo=Modulo.query.filter_by(nombre=MODULO).first(),
-            usuario=current_user,
-            descripcion=safe_message(f"Recuperado Rol {rol.nombre}"),
-            url=url_for("roles.detail", rol_id=rol.id),
-        )
-        bitacora.save()
-        flash(bitacora.descripcion, "success")
-    return redirect(url_for("roles.detail", rol_id=rol.id))

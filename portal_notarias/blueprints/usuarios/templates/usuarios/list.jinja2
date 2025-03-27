@@ -9,9 +9,6 @@
         {% if current_user.can_view('MODULOS') %}
             {{ topbar.button('Módulos', url_for('modulos.list_active'), 'mdi:toy-brick') }}
         {% endif %}
-        {% if current_user.can_view('PERMISOS') %}
-            {{ topbar.button('Permisos', url_for('permisos.list_active'), 'mdi:lock') }}
-        {% endif %}
         {% if current_user.can_view('ROLES') %}
             {{ topbar.button('Roles', url_for('roles.list_active'), 'mdi:gamepad') }}
         {% endif %}
@@ -19,9 +16,9 @@
             {% if estatus == 'A' %}{{ topbar.button_list_inactive('Inactivos', url_for('usuarios.list_inactive')) }}{% endif %}
             {% if estatus == 'B' %}{{ topbar.button_list_active('Activos', url_for('usuarios.list_active')) }}{% endif %}
         {% endif %}
-        {% if current_user.can_insert('USUARIOS') %}
+        {# if current_user.can_insert('USUARIOS') %}
             {{ topbar.button_new('Nuevo Usuario', url_for('usuarios.new')) }}
-        {% endif %}
+        {% endif #}
     {% endcall %}
 {% endblock %}
 
@@ -30,11 +27,11 @@
         <!-- Filtros usuarios -->
         <div class="row">
             <div class="col">
-                <form class="row g-1 mb-3" id="filtradorForm" onsubmit="filtrosUsuarios.buscar(); return false;">
-                    <div class="col-4">
+                <form class="row g-1 mb-3" id="filtradorForm" onsubmit="filtrosDTUsuarios.buscar(); return false;">
+                    <div class="col-3">
                         <div class="form-floating">
-                            <input id="filtroEMail" type="text" class="form-control" aria-label="email">
-                            <label for="filtroEMail">e-mail</label>
+                            <input id="filtroEMail" type="text" class="form-control" aria-label="Correo electrónico">
+                            <label for="filtroEMail">Correo electrónico</label>
                         </div>
                     </div>
                     <div class="col-3">
@@ -46,12 +43,12 @@
                     <div class="col-3">
                         <div class="form-floating">
                             <input id="filtroApellidoPaterno" type="text" class="form-control" aria-label="Apellido paterno" style="text-transform: uppercase;">
-                            <label for="filtroApellidoPaterno">Primer paterno</label>
+                            <label for="filtroApellidoPaterno">Apellido paterno</label>
                         </div>
                     </div>
-                    <div class="col-2 text-end">
-                        <button title="Buscar" class="btn btn-primary btn-lg" onclick="filtrosUsuarios.buscar(); return false;" id="button-buscar"><span class="iconify" data-icon="mdi:magnify"></span></button>
-                        <button title="Limpiar" class="btn btn-warning btn-lg" type="reset" onclick="filtrosUsuarios.limpiar();" id="button-limpiar"><span class="iconify" data-icon="mdi:broom"></span></button>
+                    <div class="col-3 text-end">
+                        <button title="Buscar" class="btn btn-primary btn-lg" onclick="filtrosDTUsuarios.buscar(); return false;" id="button-buscar"><span class="iconify" data-icon="mdi:magnify"></span></button>
+                        <button title="Limpiar" class="btn btn-warning btn-lg" type="reset" onclick="filtrosDTUsuarios.limpiar();" id="button-limpiar"><span class="iconify" data-icon="mdi:broom"></span></button>
                     </div>
                 </form>
             </div>
@@ -62,6 +59,7 @@
                 <tr>
                     <th>Correo electrónico</th>
                     <th>Nombre completo</th>
+                    <th>CURP</th>
                     <th>Puesto</th>
                     <th>Autoridad</th>
                 </tr>
@@ -76,16 +74,17 @@
     <script>
         // DataTable usuarios
         const constructorDataTable = new ConfigDataTable( '{{ csrf_token() }}' );
-        let configDataTable = constructorDataTable.config();
-        configDataTable['ajax']['url'] = '/usuarios/datatable_json';
-        configDataTable['ajax']['data'] = {{ filtros }};
-        configDataTable['columns'] = [
+        let configDTUsuarios = constructorDataTable.config();
+        configDTUsuarios['ajax']['url'] = '/usuarios/datatable_json';
+        configDTUsuarios['ajax']['data'] = {{ filtros }};
+        configDTUsuarios['columns'] = [
             { data: "detalle" },
             { data: "nombre" },
+            { data: "curp" },
             { data: "puesto" },
             { data: "autoridad" }
         ];
-        configDataTable['columnDefs'] = [
+        configDTUsuarios['columnDefs'] = [
             {
                 targets: 0, // detalle
                 data: null,
@@ -94,25 +93,41 @@
                 }
             },
             {
-                targets: [1, 2], // nombre, puesto
+                targets: [1, 3], // nombre, puesto
                 data: null,
                 render: function(data, type, row, meta) {
-                    return (data.length > 48 ? data.substr(0, 48) + '…' : data);
+                    if (data.length > 24) {
+                        return '<span title="' + data + '">' + data.substring(0, 24) + '…</span>';
+                    }
+                    return data;
                 }
             },
             {
-                targets: 3, // autoridad
+                targets: 2, // curp
                 data: null,
                 render: function(data, type, row, meta) {
+                    if (data.length > 4) {
+                        return '<span title="' + data + '">' + data.substring(0, 4) + '…</span>';
+                    }
+                    return data;
+                }
+            },
+            {
+                targets: 4, // autoridad
+                data: null,
+                render: function(data, type, row, meta) {
+                    if (data.url === "") {
+                        return data.clave;
+                    }
                     return '<a href="' + data.url + '">' + data.clave + '</a>';
                 }
             }
         ];
         // Filtros usuarios
-        const filtrosUsuarios = new FiltrosDataTable('#usuarios_datatable', configDataTable);
-        filtrosUsuarios.agregarInput('filtroEMail', 'email');
-        filtrosUsuarios.agregarInput('filtroNombres', 'nombres');
-        filtrosUsuarios.agregarInput('filtroApellidoPaterno', 'apellido_paterno');
-        filtrosUsuarios.precargar();
+        const filtrosDTUsuarios = new FiltrosDataTable('#usuarios_datatable', configDTUsuarios);
+        filtrosDTUsuarios.agregarInput('filtroEMail', 'email');
+        filtrosDTUsuarios.agregarInput('filtroNombres', 'nombres');
+        filtrosDTUsuarios.agregarInput('filtroApellidoPaterno', 'apellido_paterno');
+        filtrosDTUsuarios.precargar();
     </script>
 {% endblock %}
