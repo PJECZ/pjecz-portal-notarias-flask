@@ -43,7 +43,7 @@
         <!-- Publicaciones de la propia notaria -->
        <div class="card bg-success mb-3">
             <div class="card-header text-light bg-success">
-                Edictos Publicados {{ current_user.autoridad.descripcion_corta }}
+                Edictos Publicados por la  {{ current_user.autoridad.descripcion_corta }}
             </div>
             <div class="card-body bg-light">
                 {% if edictos_usuarios_lista %}
@@ -57,7 +57,7 @@
                                     <div class="card-body">
                                         <p>{{ descripcion }}</p>
                                         <a class="btn btn-block btn-md btn-outline-success w-100 my-2" href="{{ url_for('edictos.detail', edicto_id=edicto_id) }}">
-                                            ver
+                                            Ver
                                         </a>
                                     </div>
                                 </div>
@@ -74,7 +74,7 @@
     {% endif %}
     <!-- Publicaciones de todas las notarias -->
     {% if mostrar_notaria %}
-        {% call detail.card(title='Edictos publicados') %}
+        {% call detail.card(title='Edictos publicados por otras Notarías') %}
             {% if edictos_dia_lista %}
                 {% call card.container_row() %}
                     {% for edicto_id, fecha, descripcion, autoridad_clave, cantidad in edictos_dia_lista %}
