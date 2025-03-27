@@ -13,6 +13,7 @@
         {{ detail.label_value_big('Nombre', current_user.nombre) }}
         {{ detail.label_value('Distrito', current_user.autoridad.distrito.nombre) }}
         {{ detail.label_value('Autoridad', current_user.autoridad.descripcion) }}
+        {{ detail.label_value('Oficina', current_user.oficina.descripcion_corta) }}
         {{ detail.label_value('CURP', current_user.curp) }}
         {{ detail.label_value('e-mail', current_user.email) }}
         {{ detail.label_value('Puesto', current_user.puesto) }}

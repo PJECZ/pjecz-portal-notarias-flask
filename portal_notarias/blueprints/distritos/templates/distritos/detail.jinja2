@@ -8,13 +8,6 @@
 {% block topbar_actions %}
     {% call topbar.page_buttons('Distrito ' + distrito.nombre_corto) %}
         {{ topbar.button_previous('Distritos', url_for('distritos.list_active')) }}
-        {% if current_user.can_edit('DISTRITOS') %}
-            {{ topbar.button_edit('Editar', url_for('distritos.edit', distrito_id=distrito.id)) }}
-        {% endif %}
-        {% if current_user.can_admin('DISTRITOS') %}
-            {% if distrito.estatus == 'A' %}{{ topbar.button_delete('Eliminar', url_for('distritos.delete', distrito_id=distrito.id)) }}{% endif %}
-            {% if distrito.estatus == 'B' %}{{ topbar.button_recover('Recuperar', url_for('distritos.recover', distrito_id=distrito.id)) }}{% endif %}
-        {% endif %}
     {% endcall %}
 {% endblock %}
 
@@ -23,26 +16,26 @@
         {{ detail.label_value_big('Clave', distrito.clave) }}
         {{ detail.label_value('Nombre', distrito.nombre) }}
         {{ detail.label_value('Nombre corto', distrito.nombre_corto) }}
+        {{ detail.label_value_boolean('Es Distrito Judicial (pjecz.gob.mx)', distrito.es_distrito_judicial) }}
         {{ detail.label_value_boolean('Es Distrito (geográfico)', distrito.es_distrito) }}
         {{ detail.label_value_boolean('Es Jurisdiccional', distrito.es_jurisdiccional) }}
-        {# detail.label_value('Creado', moment(distrito.creado).format('llll')) #}
     {% endcall %}
     {% if current_user.can_view('AUTORIDADES') %}
         {% call detail.card('Autoridades') %}
-            <!-- Filtros autoridades -->
+            <!-- Filtros Autoridades -->
             <div class="row">
                 <div class="col">
                     <form class="row g-1 mb-3" id="filtradorForm" onsubmit="filtrosAutoridades.buscar(); return false;">
                         <div class="col-2">
                             <div class="form-floating">
-                                <input id="filtroClave" type="text" class="form-control" aria-label="Clave" style="text-transform: uppercase;">
-                                <label for="filtroClave">Clave</label>
+                                <input id="filtroAutoridadClave" type="text" class="form-control" aria-label="Clave" style="text-transform: uppercase;">
+                                <label for="filtroAutoridadClave">Clave</label>
                             </div>
                         </div>
                         <div class="col-4">
                             <div class="form-floating">
-                                <input id="filtroDescripcion" type="text" class="form-control" aria-label="Descripcion" style="text-transform: uppercase;">
-                                <label for="filtroDescripcion">Descripción</label>
+                                <input id="filtroAutoridadDescripcion" type="text" class="form-control" aria-label="Descripcion" style="text-transform: uppercase;">
+                                <label for="filtroAutoridadDescripcion">Descripción</label>
                             </div>
                         </div>
                         <div class="col-6 text-end">
@@ -52,7 +45,7 @@
                     </form>
                 </div>
             </div>
-            <!-- Datatable autoridades -->
+            <!-- Datatable Autoridades -->
             <table id="autoridades_datatable" class="table display nowrap" style="width:100%">
                 <thead>
                     <tr>
@@ -67,54 +60,36 @@
 {% endblock %}
 
 {% block custom_javascript %}
-    {% if current_user.can_admin('DISTRITOS') %}
-        {% if distrito.estatus == 'A' %}{{ modals.custom_javascript_delete('Eliminar', '¿Eliminar a ' + distrito.nombre + '?') }}{% endif %}
-        {% if distrito.estatus == 'B' %}{{ modals.custom_javascript_recover('Recuperar', '¿Recuperar a ' + distrito.nombre + '?') }}{% endif %}
-    {% endif %}
-    {{ detail.moment_js(moment) }}
+    <!-- Constructor de DataTables -->
     <script src="/static/js/datatables-constructor.js"></script>
     <script src="/static/js/datatables-filtros.js"></script>
+    <script>
+        const constructorDataTable = new ConfigDataTable( '{{ csrf_token() }}' );
+    </script>
     {% if current_user.can_view('AUTORIDADES') %}
         <script>
-            // DataTable autoridades
-            const constructorDataTable = new ConfigDataTable( '{{ csrf_token() }}' );
-            let configDataTable = constructorDataTable.config();
-            configDataTable['ajax']['url'] = '/autoridades/datatable_json';
-            configDataTable['ajax']['data'] = { 'estatus': "A", 'distrito_id': {{ distrito.id}} };
-            configDataTable['columns'] = [
+            // DataTable Autoridades
+            let configDTAutoridades = constructorDataTable.config();
+            configDTAutoridades['ajax']['url'] = '/autoridades/datatable_json';
+            configDTAutoridades['ajax']['data'] = { 'estatus': "A", 'distrito_id': {{ distrito.id }} };
+            configDTAutoridades['columns'] = [
                 { data: "detalle" },
                 { data: "descripcion_corta" },
-                { data: "municipio" },
                 { data: "es_extinto" }
             ];
-            configDataTable['columnDefs'] = [
+            configDTAutoridades['columnDefs'] = [
                 {
                     targets: 0, // detalle
                     data: null,
                     render: function(data, type, row, meta) {
                         return '<a href="' + data.url + '">' + data.clave + '</a>';
                     }
-                },
-                {
-                    targets: 2, // municipio
-                    data: null,
-                    render: function(data, type, row, meta) {
-                        if (data.nombre.length > 32) {
-                            nombre = data.nombre.substr(0, 32) + '…';
-                        } else {
-                            nombre = data.nombre;
-                        }
-                        if (data.url != '') {
-                            return '<a href="' + data.url + '">' + nombre + '</a>';
-                        }
-                        return nombre;
-                    }
                 }
             ];
-            // Filtros autoridades
-            const filtrosAutoridades = new FiltrosDataTable('#autoridades_datatable', configDataTable);
-            filtrosAutoridades.agregarInput('filtroClave', 'clave');
-            filtrosAutoridades.agregarInput('filtroDescripcion', 'descripcion');
+            // Filtros Autoridades
+            const filtrosAutoridades = new FiltrosDataTable('#autoridades_datatable', configDTAutoridades);
+            filtrosAutoridades.agregarInput('filtroAutoridadClave', 'clave');
+            filtrosAutoridades.agregarInput('filtroAutoridadDescripcion', 'descripcion');
             filtrosAutoridades.precargar();
         </script>
     {% endif %}

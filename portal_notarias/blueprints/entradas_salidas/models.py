@@ -28,7 +28,7 @@ class EntradaSalida(database.Model, UniversalMixin):
     usuario: Mapped["Usuario"] = relationship(back_populates="entradas_salidas")
 
     # Columnas
-    tipo: Mapped[str] = mapped_column(Enum(*TIPOS, name="entradas_salidas_tipos", native_enum=False))
+    tipo: Mapped[str] = mapped_column(Enum(*TIPOS, name="entradas_salidas_tipos", native_enum=False), index=True)
     direccion_ip: Mapped[str] = mapped_column(String(64))
 
     def __repr__(self):

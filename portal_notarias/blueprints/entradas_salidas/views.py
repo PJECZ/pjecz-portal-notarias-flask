@@ -2,6 +2,8 @@
 Entradas-Salidas
 """
 
+import json
+
 from flask import Blueprint, render_template, request, url_for
 from flask_login import login_required
 
@@ -54,7 +56,7 @@ def datatable_json():
     for resultado in registros:
         data.append(
             {
-                "creado": resultado.creado.strftime("%Y-%m-%d %H:%M:%S"),
+                "creado": resultado.creado.strftime("%Y-%m-%dT%H:%M:%S"),
                 "tipo": resultado.tipo,
                 "usuario": {
                     "email": resultado.usuario.email,
@@ -69,4 +71,23 @@ def datatable_json():
 @entradas_salidas.route("/entradas_salidas")
 def list_active():
     """Listado de Entradas-Salidas activos"""
-    return render_template("entradas_salidas/list.jinja2")
+
+    # Definir filtros por defecto
+    filtros = {"estatus": "A"}
+    titulo = "Entradas-Salidas"
+
+    # Si viene usuario_id en la URL, agregar a los filtros
+    try:
+        usuario_id = int(request.args.get("usuario_id"))
+        usuario = Usuario.query.get_or_404(usuario_id)
+        filtros = {"estatus": "A", "usuario_id": usuario_id}
+        titulo = f"Entradas-Salidas de {usuario.nombre}"
+    except (TypeError, ValueError):
+        pass
+
+    # Entregar
+    return render_template(
+        "entradas_salidas/list.jinja2",
+        filtros=json.dumps(filtros),
+        titulo=titulo,
+    )

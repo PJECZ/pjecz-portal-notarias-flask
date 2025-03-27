@@ -8,70 +8,94 @@
 {% block topbar_actions %}
     {% call topbar.page_buttons('Usuario ' + usuario.email) %}
         {{ topbar.button_previous('Usuarios', url_for('usuarios.list_active')) }}
-        {% if current_user.can_edit('USUARIOS') %}
+        {# if current_user.can_edit('USUARIOS') %}
             {{ topbar.button_edit('Editar', url_for('usuarios.edit', usuario_id=usuario.id)) }}
-        {% endif %}
+        {% endif #}
         {% if current_user.can_admin('USUARIOS') %}
             {% if usuario.estatus == 'A' %}
                 {{ topbar.button('API Key', url_for('usuarios.view_api_key', usuario_id=usuario.id), 'mdi:key') }}
             {% endif %}
-            {% if usuario.estatus == 'A' %}{{ topbar.button_delete('Eliminar', url_for('usuarios.delete', usuario_id=usuario.id)) }}{% endif %}
-            {% if usuario.estatus == 'B' %}{{ topbar.button_recover('Recuperar', url_for('usuarios.recover', usuario_id=usuario.id)) }}{% endif %}
+            {# if usuario.estatus == 'A' %}{{ topbar.button_delete('Eliminar', url_for('usuarios.delete', usuario_id=usuario.id)) }}{% endif %}
+            {% if usuario.estatus == 'B' %}{{ topbar.button_recover('Recuperar', url_for('usuarios.recover', usuario_id=usuario.id)) }}{% endif #}
         {% endif %}
     {% endcall %}
 {% endblock %}
 
 {% block content %}
     {% call detail.card(estatus=usuario.estatus) %}
-        {{ detail.label_value_big('e-mail', usuario.email) }}
-        {{ detail.label_value('Nombre', usuario.nombre) }}
-        {{ detail.label_value('CURP', usuario.curp) }}
-        {% if current_user.can_view("DISTRITOS") %}
-            {{ detail.label_value('Distrito', usuario.autoridad.distrito.nombre, url_for('distritos.detail', distrito_id=usuario.autoridad.distrito_id)) }}
-        {% else %}
-            {{ detail.label_value('Distrito', usuario.autoridad.distrito.nombre) }}
-        {% endif %}
-        {% if current_user.can_view("AUTORIDADES") %}
-            {{ detail.label_value('Autoridad', usuario.autoridad.descripcion, url_for('autoridades.detail', autoridad_id=usuario.autoridad_id)) }}
-        {% else %}
-            {{ detail.label_value('Autoridad', usuario.autoridad.descripcion) }}
-        {% endif %}
-        {{ detail.label_value('Puesto', usuario.puesto) }}
-        {# detail.label_value('Creado', moment(usuario.creado).format('llll')) #}
+        <div class="row">
+            <div class="col-md-6">
+                {# detail.label_value_big('e-mail', usuario.email) #}
+                {{ detail.label_value('Nombre', usuario.nombre) }}
+                {{ detail.label_value('CURP', usuario.curp) }}
+                {% if current_user.can_view("DISTRITOS") %}
+                    {{ detail.label_value('Distrito', usuario.autoridad.distrito.nombre, url_for('distritos.detail', distrito_id=usuario.autoridad.distrito_id)) }}
+                {% else %}
+                    {{ detail.label_value('Distrito', usuario.autoridad.distrito.nombre) }}
+                {% endif %}
+                {% if current_user.can_view("AUTORIDADES") %}
+                    {{ detail.label_value('Autoridad', usuario.autoridad.descripcion, url_for('autoridades.detail', autoridad_id=usuario.autoridad_id)) }}
+                {% else %}
+                    {{ detail.label_value('Autoridad', usuario.autoridad.descripcion) }}
+                {% endif %}
+                {{ detail.label_value('Puesto', usuario.puesto) }}
+                {{ detail.label_value('Workspace', usuario.workspace) }}
+                {{ detail.label_value('ID eFirma', usuario.efirma_registro_id) }}
+            </div>
+            <div class="col-md-3">
+                {% if current_user.can_view("BITACORAS") %}
+                    {{ detail.button_md(label='Bitácoras', url=url_for('bitacoras.list_active', usuario_id=usuario.id), icon='mdi:calendar-clock', color_class='btn-outline-secondary') }}
+                {% endif %}
+                {% if current_user.can_view("ENTRADAS SALIDAS") %}
+                    {{ detail.button_md(label='Entradas-Salidas', url=url_for('entradas_salidas.list_active', usuario_id=usuario.id), icon='mdi:calendar-clock', color_class='btn-outline-secondary') }}
+                {% endif %}
+            </div>
+            <div class="col-md-3">
+            </div>
+        </div>
     {% endcall %}
     {% if current_user.can_view('USUARIOS ROLES') %}
         {% call detail.card('Roles') %}
+            <!-- DataTable UsuariosRoles -->
             <table id="usuarios_roles_datatable" class="table display nowrap" style="width:100%">
                 <thead>
                     <tr>
                         <th>ID</th>
                         <th>Rol</th>
+                        <th>Estatus</th>
                     </tr>
                 </thead>
             </table>
             {% if current_user.can_insert('USUARIOS ROLES') %}
-            <a href="{{ url_for('usuarios_roles.new_with_usuario', usuario_id=usuario.id) }}" class="btn btn-primary">Agregar</a>
+            <a href="{{ url_for('usuarios_roles.new_with_usuario', usuario_id=usuario.id) }}" class="btn btn-primary">Agregar rol</a>
             {% endif %}
         {% endcall %}
     {% endif %}
 {% endblock %}
 
 {% block custom_javascript %}
-    {% if current_user.can_admin('USUARIOS') %}
+    {# if current_user.can_admin('USUARIOS') %}
         {% if usuario.estatus == 'A' %}{{ modals.custom_javascript_delete('Eliminar', '¿Eliminar a ' + usuario.nombre + '?') }}{% endif %}
         {% if usuario.estatus == 'B' %}{{ modals.custom_javascript_recover('Recuperar', '¿Recuperar a ' + usuario.nombre + '?') }}{% endif %}
-    {% endif %}
-    {{ detail.moment_js(moment) }}
-    {{ detail.config_datatable() }}
+    {% endif #}
+    <!-- Constructor de DataTables -->
+    <script src="/static/js/datatables-constructor.js"></script>
+    <script src="/static/js/datatables-filtros.js"></script>
+    <script>
+        const constructorDataTable = new ConfigDataTable( '{{ csrf_token() }}' );
+    </script>
     {% if current_user.can_view('USUARIOS ROLES') %}
         <script>
-            configDataTable['ajax']['url'] = '/usuarios_roles/datatable_json';
-            configDataTable['ajax']['data'] = { 'estatus': "A", 'usuario_id': {{ usuario.id}} };
-            configDataTable['columns'] = [
+            // DataTable UsuariosRoles
+            let configDTUsuariosRoles = constructorDataTable.config();
+            configDTUsuariosRoles['ajax']['url'] = '/usuarios_roles/datatable_json';
+            configDTUsuariosRoles['ajax']['data'] = { 'estatus': "A", 'usuario_id': {{ usuario.id}} };
+            configDTUsuariosRoles['columns'] = [
                 { data: "detalle" },
-                { data: "rol" }
+                { data: "rol" },
+                { data: "toggle_estatus" }
             ];
-            configDataTable['columnDefs'] = [
+            configDTUsuariosRoles['columnDefs'] = [
                 {
                     targets: 0, // detalle
                     data: null,
@@ -83,15 +107,81 @@
                     targets: 1, // rol
                     data: null,
                     render: function(data, type, row, meta) {
-                        if (data.url == '') {
+                        if (data.url === '') {
                             return data.nombre;
+                        }
+                        return '<a href="' + data.url + '">' + data.nombre + '</a>';
+                    }
+                },
+                {
+                    targets: 2, // toggle_estatus
+                    data: null,
+                    render: function(data, type, row, meta) {
+                        if (data.url === '') return data.estatus;
+                        let myId = 'usuario_rol_estatus_' + data.id;
+                        let myRow = 'usuario_rol_row_' + data.id;
+                        let myOnClick = "toggleEstatus('#" + myId + "', '" + data.url + "', '#" + myRow + "')";
+                        if (data.estatus === 'A') {
+                            return '<button id="' + myId + '" type="button" class="btn btn-sm btn-outline-primary" onclick="' + myOnClick + '"><span class="iconify" data-icon="mdi:toggle-switch"></span></button>';
                         } else {
-                            return '<a href="' + data.url + '">' + data.nombre + '</a>';
+                            return '<button id="' + myId + '" type="button" class="btn btn-sm btn-light" onclick="' + myOnClick + '"><span class="iconify" data-icon="mdi:toggle-switch-off"></span></button>';
                         }
                     }
                 }
             ];
-            $('#usuarios_roles_datatable').DataTable(configDataTable);
+            // DataTable UsuariosRoles filas
+            configDTUsuariosRoles['createdRow'] = function(row, data, dataIndex) {
+                // Cambiar estilo en las fila segun estatus
+                switch (data.estatus) {
+                    // case "A": $(row).addClass('table-light'); break;
+                    case "B": $(row).addClass('table-secondary'); break;
+                }
+                // Definir un ID unico para cada fila
+                if (data.hasOwnProperty('toggle_estatus')) {
+                    $(row).attr('id', 'usuario_rol_row_' + data.toggle_estatus.id);
+                }
+            };
+            // Filtros UsuariosRoles
+            const filtrosDTUsuariosRoles = new FiltrosDataTable('#usuarios_roles_datatable', configDTUsuariosRoles);
+            filtrosDTUsuariosRoles.precargar();
+            // Preparar headers para POST
+            const myHeaders = new Headers();
+            myHeaders.append("X-CSRF-TOKEN", "{{ csrf_token() }}");
+            const myInit = {
+                method: 'POST',
+                headers: myHeaders,
+                mode: 'cors',
+                cache: 'default'
+            };
+            // Boton toggle_estatus
+            function toggleEstatus(id, url, row) {
+                $(id).prop("disabled", true); // Deshabilitar boton para evitar multiples clicks
+                fetch(url, myInit)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            if (data.estatus === 'A') {
+                                $(id).removeClass('btn-light');
+                                $(id).addClass('btn-outline-primary'); // Color azul
+                                $(id).html('<span class="iconify" data-icon="mdi:toggle-switch"></span>'); // Icono toggle-switch
+                                $(row).removeClass('table-secondary');
+                            } else {
+                                $(id).removeClass('btn-outline-primary');
+                                $(id).addClass('btn-light'); // Color gris
+                                $(id).html('<span class="iconify" data-icon="mdi:toggle-switch-off"></span>'); // Icono toggle-switch-off
+                                $(row).addClass('table-secondary');
+                            }
+                            // console.log(data.message);
+                            console.log(row);
+                        } else {
+                            console.log(data.message);
+                        }
+                        $(id).prop("disabled", false); // Habilitar boton
+                    })
+                    .catch(error => {
+                        console.log(error);
+                    });
+            }
         </script>
     {% endif %}
 {% endblock %}

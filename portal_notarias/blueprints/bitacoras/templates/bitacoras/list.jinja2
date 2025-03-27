@@ -2,10 +2,10 @@
 {% import 'macros/list.jinja2' as list %}
 {% import 'macros/topbar.jinja2' as topbar %}
 
-{% block title %}Bitácoras{% endblock %}
+{% block title %}{{ titulo }}{% endblock %}
 
 {% block topbar_actions %}
-    {% call topbar.page_buttons('Bitácoras') %}
+    {% call topbar.page_buttons(titulo) %}
         {% if current_user.can_view('ENTRADAS SALIDAS') %}
             {{ topbar.button('Entradas/Salidas', url_for('entradas_salidas.list_active'), 'mdi:calendar-clock') }}
         {% endif %}
@@ -59,7 +59,7 @@
         const constructorDataTable = new ConfigDataTable( '{{ csrf_token() }}' );
         let configDataTable = constructorDataTable.config();
         configDataTable['ajax']['url'] = '/bitacoras/datatable_json';
-        configDataTable['ajax']['data'] = {}; // Sin filtros
+        configDataTable['ajax']['data'] = {{ filtros }};
         configDataTable['columns'] = [
             { data: "creado" },
             { data: "usuario" },
@@ -71,7 +71,7 @@
                 targets: 0, // creado
                 type: "date",
                 render: function (data, type, row) {
-                    return moment.utc(data).local().format("YYYY-MM-DD HH:mm:ss");
+                    return moment.utc(data).local().format('YYYY-MM-DD HH:mm:ss');
                 }
             },
             {

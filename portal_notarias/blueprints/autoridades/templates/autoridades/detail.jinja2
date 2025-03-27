@@ -3,53 +3,84 @@
 {% import 'macros/modals.jinja2' as modals %}
 {% import 'macros/topbar.jinja2' as topbar %}
 
-{% block title %}Autoridad {{ autoridad.descripcion_corta }}{% endblock %}
+{% block title %}Autoridad {{ autoridad.clave }}{% endblock %}
 
 {% block topbar_actions %}
-    {% call topbar.page_buttons('Autoridad ' + autoridad.descripcion_corta) %}
+    {% call topbar.page_buttons('Autoridad ' + autoridad.clave) %}
         {{ topbar.button_previous('Autoridades', url_for('autoridades.list_active')) }}
-        {% if current_user.can_edit('AUTORIDADES') %}
+        {# if current_user.can_edit('AUTORIDADES') %}
             {{ topbar.button_edit('Editar', url_for('autoridades.edit', autoridad_id=autoridad.id)) }}
-        {% endif %}
-        {% if current_user.can_admin('AUTORIDADES') %}
+        {% endif #}
+        {# if current_user.can_admin('AUTORIDADES') %}
             {% if autoridad.estatus == 'A' %}{{ topbar.button_delete('Eliminar', url_for('autoridades.delete', autoridad_id=autoridad.id)) }}{% endif %}
             {% if autoridad.estatus == 'B' %}{{ topbar.button_recover('Recuperar', url_for('autoridades.recover', autoridad_id=autoridad.id)) }}{% endif %}
-        {% endif %}
+        {% endif #}
     {% endcall %}
 {% endblock %}
 
 {% block content %}
     {% call detail.card(estatus=autoridad.estatus) %}
-        {{ detail.label_value_big('Clave', autoridad.clave) }}
-        {% if current_user.can_view("DISTRITOS") %}
-            {{ detail.label_value('Distrito', autoridad.distrito.nombre, url_for('distritos.detail', distrito_id=autoridad.distrito_id)) }}
-        {% else %}
-            {{ detail.label_value('Distrito', autoridad.distrito.nombre) }}
-        {% endif %}
-        {% if current_user.can_view("MUNICIPIOS") %}
-            {{ detail.label_value('Municipio', autoridad.municipio.nombre, url_for('municipios.detail', municipio_id=autoridad.municipio_id)) }}
-        {% else %}
-            {{ detail.label_value('Municipio', autoridad.municipio.nombre) }}
-        {% endif %}
-        {{ detail.label_value('Descripción', autoridad.descripcion) }}
-        {{ detail.label_value('Descripción corta', autoridad.descripcion_corta) }}
-        {{ detail.label_value_boolean('Es Archivo Solicitante', autoridad.es_archivo_solicitante) }}
-        {{ detail.label_value_boolean('Es CEMASC', autoridad.es_cemasc) }}
-        {{ detail.label_value_boolean('Es Defensoría', autoridad.es_defensoria) }}
-        {{ detail.label_value_boolean('Es Extinto', autoridad.es_extinto) }}
-        {{ detail.label_value_boolean('Es Jurisdiccional', autoridad.es_jurisdiccional) }}
-        {{ detail.label_value_boolean('Es Notaría', autoridad.es_notaria) }}
-        {{ detail.label_value_boolean('Es Órgano Especializado', autoridad.es_organo_especializado) }}
-        {{ detail.label_value_boolean('Es revisor de escrituras', autoridad.es_revisor_escrituras) }}
-        {# detail.label_value('Creado', moment(autoridad.creado).format('llll')) #}
+        <div class="row">
+            <div class="col-md-6">
+                {# detail.label_value_big('Clave', autoridad.clave) #}
+                {% if current_user.can_view("DISTRITOS") %}
+                    {{ detail.label_value('Distrito', autoridad.distrito.nombre, url_for('distritos.detail', distrito_id=autoridad.distrito_id)) }}
+                {% else %}
+                    {{ detail.label_value('Distrito', autoridad.distrito.nombre) }}
+                {% endif %}
+                {{ detail.label_value('Descripción', autoridad.descripcion) }}
+                {{ detail.label_value('Descripción corta', autoridad.descripcion_corta) }}
+            </div>
+            <div class="col-md-6">
+                {{ detail.label_value_boolean('Es Archivo Solicitante', autoridad.es_archivo_solicitante, ignore_is_false=True) }}
+                {{ detail.label_value_boolean('Es CEMASC', autoridad.es_cemasc, ignore_is_false=True) }}
+                {{ detail.label_value_boolean('Es Defensoría', autoridad.es_defensoria, ignore_is_false=True) }}
+                {{ detail.label_value_boolean('Es Extinto', autoridad.es_extinto, ignore_is_false=True) }}
+                {{ detail.label_value_boolean('Es Jurisdiccional', autoridad.es_jurisdiccional, ignore_is_false=True) }}
+                {{ detail.label_value_boolean('Es Notaría', autoridad.es_notaria, ignore_is_false=True) }}
+                {{ detail.label_value_boolean('Es Órgano Especializado', autoridad.es_organo_especializado, ignore_is_false=True) }}
+                {{ detail.label_value_boolean('Es revisor de escrituras', autoridad.es_revisor_escrituras, ignore_is_false=True) }}
+            </div>
+        </div>
     {% endcall %}
     {% if current_user.can_view('USUARIOS') %}
         {% call detail.card('Usuarios') %}
+            <!-- Filtros Usuarios -->
+            <div class="row">
+                <div class="col">
+                    <form class="row g-1 mb-3" id="filtradorForm" onsubmit="filtrosDTUsuarios.buscar(); return false;">
+                        <div class="col-3">
+                            <div class="form-floating">
+                                <input id="filtroEMail" type="text" class="form-control" aria-label="email">
+                                <label for="filtroEMail">e-mail</label>
+                            </div>
+                        </div>
+                        <div class="col-3">
+                            <div class="form-floating">
+                                <input id="filtroNombres" type="text" class="form-control" aria-label="Nombres" style="text-transform: uppercase;">
+                                <label for="filtroNombres">Nombres</label>
+                            </div>
+                        </div>
+                        <div class="col-3">
+                            <div class="form-floating">
+                                <input id="filtroApellidoPaterno" type="text" class="form-control" aria-label="Apellido paterno" style="text-transform: uppercase;">
+                                <label for="filtroApellidoPaterno">Primer paterno</label>
+                            </div>
+                        </div>
+                        <div class="col-3 text-end">
+                            <button title="Buscar" class="btn btn-primary btn-lg" onclick="filtrosDTUsuarios.buscar(); return false;" id="button-buscar"><span class="iconify" data-icon="mdi:magnify"></span></button>
+                            <button title="Limpiar" class="btn btn-warning btn-lg" type="reset" onclick="filtrosDTUsuarios.limpiar();" id="button-limpiar"><span class="iconify" data-icon="mdi:broom"></span></button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <!-- Datatable Usuarios -->
             <table id="usuarios_datatable" class="table display nowrap" style="width:100%">
                 <thead>
                     <tr>
                         <th>Correo electrónico</th>
-                        <th>Usuario</th>
+                        <th>Nombre completo</th>
+                        <th>CURP</th>
                         <th>Puesto</th>
                     </tr>
                 </thead>
@@ -59,22 +90,28 @@
 {% endblock %}
 
 {% block custom_javascript %}
-    {% if current_user.can_edit('AUTORIDADES') %}
+    <!-- Eliminar y recuperar -->
+    {# if current_user.can_edit('AUTORIDADES') %}
         {% if autoridad.estatus == 'A' %}{{ modals.custom_javascript_delete('Eliminar', '¿Eliminar a ' + autoridad.clave + '?') }}{% endif %}
         {% if autoridad.estatus == 'B' %}{{ modals.custom_javascript_recover('Recuperar', '¿Recuperar a ' + autoridad.clave + '?') }}{% endif %}
-    {% endif %}
-    {{ detail.moment_js(moment) }}
-    {{ detail.config_datatable() }}
+    {% endif #}
+    <!-- DataTable -->
+    <script src="/static/js/datatables-constructor.js"></script>
+    <script src="/static/js/datatables-filtros.js"></script>
     {% if current_user.can_view('USUARIOS') %}
         <script>
-            configDataTable['ajax']['url'] = '/usuarios/datatable_json';
-            configDataTable['ajax']['data'] = { 'estatus': "A", 'autoridad_id': {{ autoridad.id}} };
-            configDataTable['columns'] = [
+            // DataTable usuarios
+            const constructorDataTable = new ConfigDataTable( '{{ csrf_token() }}' );
+            let configDTUsuarios = constructorDataTable.config();
+            configDTUsuarios['ajax']['url'] = '/usuarios/datatable_json';
+            configDTUsuarios['ajax']['data'] = { 'estatus': "A", 'autoridad_id': {{ autoridad.id }} };
+            configDTUsuarios['columns'] = [
                 { data: "detalle" },
                 { data: "nombre" },
+                { data: "curp" },
                 { data: "puesto" }
             ];
-            configDataTable['columnDefs'] = [
+            configDTUsuarios['columnDefs'] = [
                 {
                     targets: 0, // detalle
                     data: null,
@@ -83,14 +120,29 @@
                     }
                 },
                 {
-                    targets: [1, 2], // nombre, puesto
+                    targets: [1, 3], // nombre, puesto
                     data: null,
                     render: function(data, type, row, meta) {
-                        return (data.length > 32 ? data.substr(0, 32) + '…' : data);
+                        return (data.length > 24 ? data.substring(0, 24) + '…' : data);
+                    }
+                },
+                {
+                    targets: 2, // curp
+                    data: null,
+                    render: function(data, type, row, meta) {
+                        if (data.length > 4) {
+                            return '<span title="' + data + '">' + data.substring(0, 4) + '…</span>';
+                        }
+                        return data;
                     }
                 }
             ];
-            $('#usuarios_datatable').DataTable(configDataTable);
+            // Filtros usuarios
+            const filtrosDTUsuarios = new FiltrosDataTable('#usuarios_datatable', configDTUsuarios);
+            filtrosDTUsuarios.agregarInput('filtroEMail', 'email');
+            filtrosDTUsuarios.agregarInput('filtroNombres', 'nombres');
+            filtrosDTUsuarios.agregarInput('filtroApellidoPaterno', 'apellido_paterno');
+            filtrosDTUsuarios.precargar();
         </script>
     {% endif %}
 {% endblock %}

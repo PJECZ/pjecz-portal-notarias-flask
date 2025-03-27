@@ -8,23 +8,16 @@
 {% block topbar_actions %}
     {% call topbar.page_buttons('Rol ' + rol.nombre) %}
         {{ topbar.button_previous('Roles', url_for('roles.list_active')) }}
-        {% if current_user.can_edit('ROLES') %}
-            {{ topbar.button_edit('Editar', url_for('roles.edit', rol_id=rol.id)) }}
-        {% endif %}
-        {% if current_user.can_admin('ROLES') %}
-            {% if rol.estatus == 'A' %}{{ topbar.button_delete('Eliminar', url_for('roles.delete', rol_id=rol.id)) }}{% endif %}
-            {% if rol.estatus == 'B' %}{{ topbar.button_recover('Recuperar', url_for('roles.recover', rol_id=rol.id)) }}{% endif %}
-        {% endif %}
     {% endcall %}
 {% endblock %}
 
 {% block content %}
     {% if current_user.can_view('PERMISOS') %}
         {% call detail.card('Permisos') %}
-            <!-- Filtros permisos -->
+            <!-- Filtros Permisos -->
             <div class="row">
                 <div class="col">
-                    <form class="row g-1 mb-3" id="filtradorForm" onsubmit="filtrosPermisos.buscar(); return false;">
+                    <form class="row g-1 mb-3" id="filtradorForm" onsubmit="filtrosDTPermisos.buscar(); return false;">
                         <div class="col-3">
                             <div class="form-floating">
                                 <input id="filtroPermisoNombre" type="text" class="form-control" aria-label="Nombre" style="text-transform: uppercase;">
@@ -45,15 +38,16 @@
                                 <option value="3">VER, MODIFICAR y CREAR</option>
                                 <option value="4">ADMINISTRAR</option>
                             </select>
+                            <label for="filtroPermisoNivel">Nivel</label>
                         </div>
                         <div class="col-3 text-end">
-                            <button title="Buscar" class="btn btn-primary btn-lg" onclick="filtrosPermisos.buscar(); return false;" id="button-buscar"><span class="iconify" data-icon="mdi:magnify"></span></button>
-                            <button title="Limpiar" class="btn btn-warning btn-lg" type="reset" onclick="filtrosPermisos.limpiar();" id="button-limpiar"><span class="iconify" data-icon="mdi:broom"></span></button>
+                            <button title="Buscar" class="btn btn-primary btn-lg" onclick="filtrosDTPermisos.buscar(); return false;" id="button-buscar"><span class="iconify" data-icon="mdi:magnify"></span></button>
+                            <button title="Limpiar" class="btn btn-warning btn-lg" type="reset" onclick="filtrosDTPermisos.limpiar();" id="button-limpiar"><span class="iconify" data-icon="mdi:broom"></span></button>
                         </div>
                     </form>
                 </div>
             </div>
-            <!-- Datatable permisos -->
+            <!-- Datatable Permisos -->
             <table id="permisos_datatable" class="table display nowrap" style="width:100%">
                 <thead>
                     <tr>
@@ -63,17 +57,14 @@
                     </tr>
                 </thead>
             </table>
-            {% if current_user.can_insert('PERMISOS') %}
-            <a href="{{ url_for('permisos.new_with_rol', rol_id=rol.id) }}" class="btn btn-primary">Agregar</a>
-            {% endif %}
         {% endcall %}
     {% endif %}
     {% if current_user.can_view('USUARIOS ROLES') %}
         {% call detail.card('Usuarios') %}
-            <!-- Filtros usuarios-roles -->
+            <!-- Filtros UsuariosRoles -->
             <div class="row">
                 <div class="col">
-                    <form class="row g-1 mb-3" id="filtradorForm" onsubmit="filtrosUsuarios.buscar(); return false;">
+                    <form class="row g-1 mb-3" id="filtradorForm" onsubmit="filtrosUsuariosRoles.buscar(); return false;">
                         <div class="col-4">
                             <div class="form-floating">
                                 <input id="filtroEMail" type="text" class="form-control" aria-label="e-mail">
@@ -93,13 +84,13 @@
                             </div>
                         </div>
                         <div class="col-2 text-end">
-                            <button title="Buscar" class="btn btn-primary btn-lg" onclick="filtrosUsuarios.buscar(); return false;" id="button-buscar"><span class="iconify" data-icon="mdi:magnify"></span></button>
-                            <button title="Limpiar" class="btn btn-warning btn-lg" type="reset" onclick="filtrosUsuarios.limpiar();" id="button-limpiar"><span class="iconify" data-icon="mdi:broom"></span></button>
+                            <button title="Buscar" class="btn btn-primary btn-lg" onclick="filtrosUsuariosRoles.buscar(); return false;" id="button-buscar"><span class="iconify" data-icon="mdi:magnify"></span></button>
+                            <button title="Limpiar" class="btn btn-warning btn-lg" type="reset" onclick="filtrosUsuariosRoles.limpiar();" id="button-limpiar"><span class="iconify" data-icon="mdi:broom"></span></button>
                         </div>
                     </form>
                 </div>
             </div>
-            <!-- Datatable usuarios-roles -->
+            <!-- Datatable UsuariosRoles -->
             <table id="usuarios_roles_datatable" class="table display nowrap" style="width:100%">
                 <thead>
                     <tr>
@@ -107,21 +98,15 @@
                         <th>Correo electrónico</th>
                         <th>Nombre completo</th>
                         <th>Puesto</th>
+                        <th>Estatus</th>
                     </tr>
                 </thead>
             </table>
-            {% if current_user.can_insert('USUARIOS ROLES') %}
-            <a href="{{ url_for('usuarios_roles.new_with_rol', rol_id=rol.id) }}" class="btn btn-primary">Agregar</a>
-            {% endif %}
         {% endcall %}
     {% endif %}
 {% endblock %}
 
 {% block custom_javascript %}
-    {% if current_user.can_admin('ROLES') %}
-        {% if rol.estatus == 'A' %}{{ modals.custom_javascript_delete('Eliminar', '¿Eliminar a ' + rol.nombre + '?') }}{% endif %}
-        {% if rol.estatus == 'B' %}{{ modals.custom_javascript_recover('Recuperar', '¿Recuperar a ' + rol.nombre + '?') }}{% endif %}
-    {% endif %}
     <script src="/static/js/datatables-constructor.js"></script>
     <script src="/static/js/datatables-filtros.js"></script>
     <script>
@@ -129,7 +114,7 @@
     </script>
     {% if current_user.can_view('PERMISOS') %}
         <script>
-            // DataTable permisos
+            // DataTable Permisos
             let configDTPermisos = constructorDataTable.config();
             configDTPermisos['ajax']['url'] = '/permisos/datatable_json';
             configDTPermisos['ajax']['data'] = { 'estatus': "A", 'rol_id': {{ rol.id}} };
@@ -158,27 +143,28 @@
                     }
                 }
             ];
-            // Filtros permisos
-            const filtrosPermisos = new FiltrosDataTable('#permisos_datatable', configDTPermisos);
-            filtrosPermisos.agregarInput('filtroPermisoNombre', 'nombre');
-            filtrosPermisos.agregarInput('filtroPermisoModuloNombre', 'modulo_nombre');
-            filtrosPermisos.agregarInput('filtroPermisoNivel', 'nivel');
-            filtrosPermisos.precargar();
+            // Filtros Permisos
+            const filtrosDTPermisos = new FiltrosDataTable('#permisos_datatable', configDTPermisos);
+            filtrosDTPermisos.agregarInput('filtroPermisoNombre', 'nombre');
+            filtrosDTPermisos.agregarInput('filtroPermisoModuloNombre', 'modulo_nombre');
+            filtrosDTPermisos.agregarInput('filtroPermisoNivel', 'nivel');
+            filtrosDTPermisos.precargar();
         </script>
     {% endif %}
     {% if current_user.can_view('USUARIOS ROLES') %}
         <script>
-            // DataTable usuarios-roles
-            let configDTUsuarios = constructorDataTable.config();
-            configDTUsuarios['ajax']['url'] = '/usuarios_roles/datatable_json';
-            configDTUsuarios['ajax']['data'] = { 'estatus': "A", 'rol_id': {{ rol.id}} };
-            configDTUsuarios['columns'] = [
+            // DataTable UsuariosRoles
+            let configDTUsuariosRoles = constructorDataTable.config();
+            configDTUsuariosRoles['ajax']['url'] = '/usuarios_roles/datatable_json';
+            configDTUsuariosRoles['ajax']['data'] = { 'estatus': "A", 'rol_id': {{ rol.id}} };
+            configDTUsuariosRoles['columns'] = [
                 { data: "detalle" },
                 { data: "usuario" },
                 { data: "usuario_nombre" },
-                { data: "usuario_puesto" }
+                { data: "usuario_puesto" },
+                { data: "toggle_estatus" }
             ];
-            configDTUsuarios['columnDefs'] = [
+            configDTUsuariosRoles['columnDefs'] = [
                 {
                     targets: 0, // detalle
                     data: null,
@@ -190,7 +176,7 @@
                     targets: 1, // usuario
                     data: null,
                     render: function(data, type, row, meta) {
-                        if (data.url == '') {
+                        if (data.url === '') {
                             return data.email;
                         } else {
                             return '<a href="' + data.url + '">' + data.email + '</a>';
@@ -201,17 +187,80 @@
                     targets: [2, 3], // usuario_nombre, usuario_puesto
                     data: null,
                     render: function(data, type, row, meta) {
-                        return (data.length > 32 ? data.substr(0, 32) + '…' : data);
+                        return (data.length > 32 ? data.substring(0, 32) + '…' : data);
+                    }
+                },
+                {
+                    targets: 4, // toggle_estatus
+                    data: null,
+                    render: function(data, type, row, meta) {
+                        if (data.url === '') return data.estatus;
+                        let myId = 'usuario_rol_estatus_' + data.id;
+                        let myRow = 'usuario_rol_row_' + data.id;
+                        let myOnClick = "toggleEstatus('#" + myId + "', '" + data.url + "', '#" + myRow + "')";
+                        if (data.estatus === 'A') {
+                            return '<button id="' + myId + '" type="button" class="btn btn-sm btn-outline-primary" onclick="' + myOnClick + '"><span class="iconify" data-icon="mdi:toggle-switch"></span></button>';
+                        } else {
+                            return '<button id="' + myId + '" type="button" class="btn btn-sm btn-light" onclick="' + myOnClick + '"><span class="iconify" data-icon="mdi:toggle-switch-off"></span></button>';
+                        }
                     }
                 }
             ];
-            // Filtros usuarios-roles
-            const filtrosUsuarios = new FiltrosDataTable('#usuarios_roles_datatable', configDTUsuarios);
-            filtrosUsuarios.agregarInput('filtroEMail', 'email');
-            filtrosUsuarios.agregarInput('filtroNombres', 'nombres');
-            filtrosUsuarios.agregarInput('filtroApellidoPrimero', 'apellido_paterno');
-            filtrosUsuarios.precargar();
+            // DataTable UsuariosRoles filas
+            configDTUsuariosRoles['createdRow'] = function(row, data, dataIndex) {
+                // Cambiar estilo en las fila segun estatus
+                switch (data.estatus) {
+                    // case "A": $(row).addClass('table-light'); break;
+                    case "B": $(row).addClass('table-secondary'); break;
+                }
+                // Definir un ID unico para cada fila
+                if (data.hasOwnProperty('toggle_estatus')) {
+                    $(row).attr('id', 'usuario_rol_row_' + data.toggle_estatus.id);
+                }
+            };
+            // Filtros UsuariosRoles
+            const filtrosUsuariosRoles = new FiltrosDataTable('#usuarios_roles_datatable', configDTUsuariosRoles);
+            filtrosUsuariosRoles.agregarInput('filtroEMail', 'email');
+            filtrosUsuariosRoles.agregarInput('filtroNombres', 'nombres');
+            filtrosUsuariosRoles.agregarInput('filtroApellidoPrimero', 'apellido_paterno');
+            filtrosUsuariosRoles.precargar();
+            // Preparar headers para POST
+            const myHeaders = new Headers();
+            myHeaders.append("X-CSRF-TOKEN", "{{ csrf_token() }}");
+            const myInit = {
+                method: 'POST',
+                headers: myHeaders,
+                mode: 'cors',
+                cache: 'default'
+            };
+            // Boton toggle_estatus
+            function toggleEstatus(id, url, row) {
+                $(id).prop("disabled", true); // Deshabilitar boton para evitar multiples clicks
+                fetch(url, myInit)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            if (data.estatus === 'A') {
+                                $(id).removeClass('btn-light');
+                                $(id).addClass('btn-outline-primary'); // Color azul
+                                $(id).html('<span class="iconify" data-icon="mdi:toggle-switch"></span>'); // Icono toggle-switch
+                                $(row).removeClass('table-secondary');
+                            } else {
+                                $(id).removeClass('btn-outline-primary');
+                                $(id).addClass('btn-light'); // Color gris
+                                $(id).html('<span class="iconify" data-icon="mdi:toggle-switch-off"></span>'); // Icono toggle-switch-off
+                                $(row).addClass('table-secondary');
+                            }
+                            console.log(data.message);
+                        } else {
+                            console.log(data.message);
+                        }
+                        $(id).prop("disabled", false); // Habilitar boton
+                    })
+                    .catch(error => {
+                        console.log(error);
+                    });
+            }
         </script>
     {% endif %}
-    {{ detail.moment_js(moment) }}
 {% endblock %}

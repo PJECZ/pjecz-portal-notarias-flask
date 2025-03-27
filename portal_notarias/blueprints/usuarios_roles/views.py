@@ -36,38 +36,40 @@ def datatable_json():
     # Tomar parámetros de Datatables
     draw, start, rows_per_page = get_datatable_parameters()
     # Consultar
-    consulta = UsuarioRol.query
-    if "estatus" in request.form:
-        consulta = consulta.filter_by(estatus=request.form["estatus"])
-    else:
-        consulta = consulta.filter_by(estatus="A")
+    consulta = UsuarioRol.query.select_from(UsuarioRol).join(Rol).join(Usuario)
+    # Sin filtro por estatus, para usar el boton para activar o desactivar
+    # if "estatus" in request.form:
+    #     consulta = consulta.filter_by(estatus=request.form["estatus"])
+    # else:
+    #     consulta = consulta.filter_by(estatus="A")
+    # Primero filtrar por columnas propias
     if "usuario_id" in request.form:
-        consulta = consulta.filter_by(usuario_id=request.form["usuario_id"])
+        consulta = consulta.filter(UsuarioRol.usuario_id == request.form["usuario_id"])
     if "rol_id" in request.form:
-        consulta = consulta.filter_by(rol_id=request.form["rol_id"])
+        consulta = consulta.filter(UsuarioRol.rol_id == request.form["rol_id"])
     # Luego filtrar por columnas de otras tablas
-    email = ""
     if "email" in request.form:
         try:
             email = safe_email(request.form["email"], search_fragment=True)
+            consulta = consulta.filter(Usuario.email.contains(email))
         except ValueError:
             pass
-    nombres = ""
     if "nombres" in request.form:
         nombres = safe_string(request.form["nombres"], save_enie=True)
-    apellido_paterno = ""
+        consulta = consulta.filter(Usuario.nombres.contains(nombres))
     if "apellido_paterno" in request.form:
         apellido_paterno = safe_string(request.form["apellido_paterno"], save_enie=True)
-    if email != "" or nombres != "" or apellido_paterno != "":
-        consulta = consulta.join(Usuario)
-        if email != "":
-            consulta = consulta.filter(Usuario.email.contains(email))
-        if nombres != "":
-            consulta = consulta.filter(Usuario.nombres.contains(nombres))
-        if apellido_paterno != "":
-            consulta = consulta.filter(Usuario.apellido_paterno.contains(apellido_paterno))
-    # Ordenar y paginar
-    registros = consulta.order_by(UsuarioRol.id).offset(start).limit(rows_per_page).all()
+        consulta = consulta.filter(Usuario.apellido_paterno.contains(apellido_paterno))
+    # Ordenar por el nombre del rol si hay filtro usuario_id
+    if "usuario_id" in request.form:
+        consulta = consulta.order_by(Rol.nombre)
+    # Ordenar por el e-mail del usuario si hay filtro rol_id
+    if "rol_id" in request.form:
+        consulta = consulta.order_by(Usuario.email)
+    # Filtrar por los usuarios activos y por los roles activos
+    consulta = consulta.filter(Usuario.estatus == "A").filter(Rol.estatus == "A")
+    # Paginar
+    registros = consulta.offset(start).limit(rows_per_page).all()
     total = consulta.count()
     # Elaborar datos para DataTable
     data = []
@@ -90,6 +92,16 @@ def datatable_json():
                     "nombre": resultado.rol.nombre,
                     "url": url_for("roles.detail", rol_id=resultado.rol_id) if current_user.can_view("ROLES") else "",
                 },
+                "estatus": resultado.estatus,
+                "toggle_estatus": {
+                    "id": resultado.id,
+                    "estatus": resultado.estatus,
+                    "url": (
+                        url_for("usuarios_roles.toggle_estatus_json", usuario_rol_id=resultado.id)
+                        if current_user.can_admin(MODULO)
+                        else ""
+                    ),
+                },
             }
         )
     # Entregar JSON
@@ -98,24 +110,10 @@ def datatable_json():
 
 @usuarios_roles.route("/usuarios_roles")
 def list_active():
-    """Listado de Usuarios-Roles activos"""
+    """Listado de Usuarios-Roles"""
     return render_template(
         "usuarios_roles/list.jinja2",
-        filtros=json.dumps({"estatus": "A"}),
         titulo="Usuarios-Roles",
-        estatus="A",
-    )
-
-
-@usuarios_roles.route("/usuarios_roles/inactivos")
-@permission_required(MODULO, Permiso.ADMINISTRAR)
-def list_inactive():
-    """Listado de Usuarios-Roles inactivos"""
-    return render_template(
-        "usuarios_roles/list.jinja2",
-        filtros=json.dumps({"estatus": "B"}),
-        titulo="Usuarios-Roles inactivos",
-        estatus="B",
     )
 
 
@@ -246,3 +244,31 @@ def recover(usuario_rol_id):
         bitacora.save()
         flash(bitacora.descripcion, "success")
     return redirect(url_for("usuarios_roles.detail", usuario_rol_id=usuario_rol.id))
+
+
+@usuarios_roles.route("/usuarios_roles/toggle_estatus_json/<int:usuario_rol_id>", methods=["GET", "POST"])
+@permission_required(MODULO, Permiso.ADMINISTRAR)
+def toggle_estatus_json(usuario_rol_id):
+    """Cambiar el estatus de un usuario-rol por solicitud de boton en datatable"""
+
+    # Consultar usuario-rol
+    usuario_rol = UsuarioRol.query.get_or_404(usuario_rol_id)
+    if usuario_rol is None:
+        return {"success": False, "message": "No encontrado"}
+
+    # Cambiar estatus a su opuesto
+    if usuario_rol.estatus == "A":
+        usuario_rol.estatus = "B"
+    else:
+        usuario_rol.estatus = "A"
+
+    # Guardar
+    usuario_rol.save()
+
+    # Entregar JSON
+    return {
+        "success": True,
+        "message": "Activo" if usuario_rol.estatus == "A" else "Inactivo",
+        "estatus": usuario_rol.estatus,
+        "id": usuario_rol.id,
+    }

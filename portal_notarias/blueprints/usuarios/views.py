@@ -17,14 +17,12 @@ from lib.datatables import get_datatable_parameters, output_datatable_json
 from lib.pwgen import generar_api_key, generar_contrasena
 from lib.safe_next_url import safe_next_url
 from lib.safe_string import CONTRASENA_REGEXP, EMAIL_REGEXP, TOKEN_REGEXP, safe_email, safe_message, safe_string
-from portal_notarias.blueprints.autoridades.models import Autoridad
 from portal_notarias.blueprints.bitacoras.models import Bitacora
-from portal_notarias.blueprints.distritos.models import Distrito
 from portal_notarias.blueprints.entradas_salidas.models import EntradaSalida
 from portal_notarias.blueprints.modulos.models import Modulo
 from portal_notarias.blueprints.permisos.models import Permiso
 from portal_notarias.blueprints.usuarios.decorators import anonymous_required, permission_required
-from portal_notarias.blueprints.usuarios.forms import AccesoForm, UsuarioForm
+from portal_notarias.blueprints.usuarios.forms import AccesoForm
 from portal_notarias.blueprints.usuarios.models import Usuario
 
 HTTP_REQUEST = google.auth.transport.requests.Request()
@@ -99,7 +97,7 @@ def login():
         "usuarios/login.jinja2",
         form=form,
         firebase_settings=firebase_settings,
-        title="Portal de Notarías",
+        title="Plataforma del Archivo Judicial General",
     )
 
 
@@ -142,11 +140,15 @@ def datatable_json():
     consulta = Usuario.query
     # Primero filtrar por columnas propias
     if "estatus" in request.form:
-        consulta = consulta.filter_by(estatus=request.form["estatus"])
+        consulta = consulta.filter(Usuario.estatus == request.form["estatus"])
     else:
-        consulta = consulta.filter_by(estatus="A")
+        consulta = consulta.filter(Usuario.estatus == "A")
+    # Filtrar por autoridad_id u autoridad_id_diferente_a
     if "autoridad_id" in request.form:
-        consulta = consulta.filter_by(autoridad_id=request.form["autoridad_id"])
+        consulta = consulta.filter(Usuario.autoridad_id == request.form["autoridad_id"])
+    elif "autoridad_id_diferente_a" in request.form:
+        consulta = consulta.filter(Usuario.autoridad_id != request.form["autoridad_id_diferente_a"])
+    # Filtrar por las columnas de texto de Usuario
     if "nombres" in request.form:
         consulta = consulta.filter(Usuario.nombres.contains(safe_string(request.form["nombres"])))
     if "apellido_paterno" in request.form:
@@ -172,6 +174,7 @@ def datatable_json():
                     "url": url_for("usuarios.detail", usuario_id=resultado.id),
                 },
                 "nombre": resultado.nombre,
+                "curp": resultado.curp,
                 "puesto": resultado.puesto,
                 "autoridad": {
                     "clave": resultado.autoridad.clave,
@@ -187,73 +190,19 @@ def datatable_json():
     return output_datatable_json(draw, total, data)
 
 
-@usuarios.route("/usuarios/api_key_request/<int:usuario_id>", methods=["GET", "POST"])
-@login_required
-@permission_required(MODULO, Permiso.ADMINISTRAR)
-def request_api_key_json(usuario_id):
-    """Solicitar API Key"""
-
-    # Consultar usuario
-    usuario = Usuario.query.get_or_404(usuario_id)
-    if usuario.estatus != "A":
-        return {
-            "success": False,
-            "message": "El usuario no está activo",
-            "api_key": "",
-            "api_key_expiracion": "",
-        }
-
-    # Si se recibe action con clean, se va a limpiar
-    if "action" in request.form and request.form["action"] == "clean":
-        usuario.api_key = ""
-        usuario.api_key_expiracion = datetime(year=2000, month=1, day=1)
-        usuario.save()
-        mensaje = f"La API Key de {usuario.email} fue eliminada"
-        bitacora = Bitacora(
-            modulo=Modulo.query.filter_by(nombre=MODULO).first(),
-            usuario=current_user,
-            descripcion=mensaje,
-            url=url_for("usuarios.detail", usuario_id=usuario.id),
-        )
-        bitacora.save()
-        return {
-            "success": True,
-            "message": mensaje,
-            "api_key": usuario.api_key,
-            "api_key_expiracion": usuario.api_key_expiracion,
-        }
-
-    # Si se recibe action con new, se va a crear una nueva
-    if "action" in request.form and request.form["action"] == "new":
-        if "days" in request.form:
-            days = int(request.form["days"])
-        else:
-            days = 90
-        usuario.api_key = generar_api_key(usuario.id, usuario.email)
-        usuario.api_key_expiracion = datetime.now() + timedelta(days=days)
-        usuario.save()
-        mensaje = f"Nueva API Key para {usuario.email} con expiración en {days} días"
-        bitacora = Bitacora(
-            modulo=Modulo.query.filter_by(nombre=MODULO).first(),
-            usuario=current_user,
-            descripcion=mensaje,
-            url=url_for("usuarios.detail", usuario_id=usuario.id),
-        )
-        bitacora.save()
-        return {
-            "success": True,
-            "message": mensaje,
-            "api_key": usuario.api_key,
-            "api_key_expiracion": usuario.api_key_expiracion,
-        }
-
-    # Si no se recibe nada, entregar la actual
-    return {
-        "success": True,
-        "message": "Se ha entregado la API Key a la interfaz",
-        "api_key": usuario.api_key,
-        "api_key_expiracion": usuario.api_key_expiracion,
-    }
+@usuarios.route("/usuarios/select_json", methods=["GET", "POST"])
+def select_json():
+    """Select JSON para Usuarios"""
+    # Consultar
+    consulta = Usuario.query.filter_by(estatus="A")
+    if "searchString" in request.form:
+        usuarios_email = safe_email(request.form["searchString"], search_fragment=True)
+        if usuarios_email != "":
+            consulta = consulta.filter(Usuario.email.contains(usuarios_email))
+    resultados = []
+    for usuario in consulta.order_by(Usuario.email).limit(20).all():
+        resultados.append({"id": usuario.email, "text": usuario.email, "nombre": usuario.nombre})
+    return {"results": resultados, "pagination": {"more": False}}
 
 
 @usuarios.route("/usuarios")
@@ -289,169 +238,3 @@ def detail(usuario_id):
     """Detalle de un Usuario"""
     usuario = Usuario.query.get_or_404(usuario_id)
     return render_template("usuarios/detail.jinja2", usuario=usuario)
-
-
-@usuarios.route("/usuarios/api_key/<int:usuario_id>")
-@login_required
-@permission_required(MODULO, Permiso.ADMINISTRAR)
-def view_api_key(usuario_id):
-    """Ver API Key"""
-
-    # Consultar usuario
-    usuario = Usuario.query.get_or_404(usuario_id)
-    if usuario.estatus != "A":
-        flash("El usuario no está activo.", "warning")
-        return redirect(url_for("usuarios.detail", usuario_id=usuario.id))
-
-    # Juntar los permisos por nivel
-    permisos_por_nivel = {1: [], 2: [], 3: [], 4: []}
-    for etiqueta, nivel in usuario.permisos.items():
-        permisos_por_nivel[nivel].append(etiqueta)
-
-    # Mostrar api_key.jinja2
-    return render_template(
-        "usuarios/api_key.jinja2",
-        usuario=usuario,
-        permisos_en_nivel_1=sorted(permisos_por_nivel[1]),
-        permisos_en_nivel_2=sorted(permisos_por_nivel[2]),
-        permisos_en_nivel_3=sorted(permisos_por_nivel[3]),
-        permisos_en_nivel_4=sorted(permisos_por_nivel[4]),
-    )
-
-
-@usuarios.route("/usuarios/nuevo", methods=["GET", "POST"])
-@login_required
-@permission_required(MODULO, Permiso.CREAR)
-def new():
-    """Nuevo Usuario"""
-    form = UsuarioForm()
-    if form.validate_on_submit():
-        # Validar que el email no se repita
-        email = safe_email(form.email.data)
-        if Usuario.query.filter_by(email=email).first():
-            flash("El e-mail ya está en uso. Debe de ser único.", "warning")
-            return render_template("usuarios/new.jinja2", form=form)
-        # Guadar
-        autoridad = Autoridad.query.get_or_404(form.autoridad.data)
-        usuario = Usuario(
-            autoridad=autoridad,
-            email=email,
-            nombres=safe_string(form.nombres.data, save_enie=True),
-            apellido_paterno=safe_string(form.apellido_paterno.data, save_enie=True),
-            apellido_materno=safe_string(form.apellido_materno.data, save_enie=True),
-            curp=safe_string(form.curp.data),
-            puesto=safe_string(form.puesto.data),
-            api_key="",
-            api_key_expiracion=datetime(year=2000, month=1, day=1, hour=0, minute=0, second=0),
-            contrasena=generar_contrasena(),
-        )
-        usuario.save()
-        bitacora = Bitacora(
-            modulo=Modulo.query.filter_by(nombre=MODULO).first(),
-            usuario=current_user,
-            descripcion=safe_message(f"Nuevo Usuario {usuario.email}"),
-            url=url_for("usuarios.detail", usuario_id=usuario.id),
-        )
-        bitacora.save()
-        flash(bitacora.descripcion, "success")
-        return redirect(bitacora.url)
-    # Consultar el distrito por defecto
-    distrito_por_defecto_id = 1
-    distrito_por_defecto = Distrito.query.filter_by(clave="ND").first()
-    if distrito_por_defecto is not None:
-        distrito_por_defecto_id = distrito_por_defecto.id
-    # Entregar
-    return render_template("usuarios/new.jinja2", form=form, distrito_por_defecto_id=distrito_por_defecto_id)
-
-
-@usuarios.route("/usuarios/edicion/<int:usuario_id>", methods=["GET", "POST"])
-@login_required
-@permission_required(MODULO, Permiso.MODIFICAR)
-def edit(usuario_id):
-    """Editar Usuario"""
-    usuario = Usuario.query.get_or_404(usuario_id)
-    form = UsuarioForm()
-    if form.validate_on_submit():
-        es_valido = True
-        # Si cambia el e-mail verificar que no este en uso
-        email = safe_email(form.email.data)
-        if usuario.email != email:
-            usuario_existente = Usuario.query.filter_by(email=email).first()
-            if usuario_existente and usuario_existente.id != usuario.id:
-                es_valido = False
-                flash("La e-mail ya está en uso. Debe de ser único.", "warning")
-        # Si es valido actualizar
-        if es_valido:
-            autoridad = Autoridad.query.get_or_404(form.autoridad.data)
-            usuario.autoridad = autoridad
-            usuario.email = email
-            usuario.nombres = safe_string(form.nombres.data, save_enie=True)
-            usuario.apellido_paterno = safe_string(form.apellido_paterno.data, save_enie=True)
-            usuario.apellido_materno = safe_string(form.apellido_materno.data, save_enie=True)
-            usuario.curp = safe_string(form.curp.data)
-            usuario.puesto = safe_string(form.puesto.data)
-            usuario.save()
-            bitacora = Bitacora(
-                modulo=Modulo.query.filter_by(nombre=MODULO).first(),
-                usuario=current_user,
-                descripcion=safe_message(f"Editado Usuario {usuario.email}"),
-                url=url_for("usuarios.detail", usuario_id=usuario.id),
-            )
-            bitacora.save()
-            flash(bitacora.descripcion, "success")
-            return redirect(bitacora.url)
-    form.email.data = usuario.email
-    form.nombres.data = usuario.nombres
-    form.apellido_paterno.data = usuario.apellido_paterno
-    form.apellido_materno.data = usuario.apellido_materno
-    form.curp.data = usuario.curp
-    form.puesto.data = usuario.puesto
-    return render_template("usuarios/edit.jinja2", form=form, usuario=usuario)
-
-
-@usuarios.route("/usuarios/eliminar/<int:usuario_id>")
-@login_required
-@permission_required(MODULO, Permiso.ADMINISTRAR)
-def delete(usuario_id):
-    """Eliminar Usuario"""
-    usuario = Usuario.query.get_or_404(usuario_id)
-    if usuario.estatus == "A":
-        # Dar de baja al usuario
-        usuario.delete()
-        # Dar de baja los roles del usuario
-        for usuario_rol in usuario.usuarios_roles:
-            usuario_rol.delete()
-        # Guardar en la bitacora
-        bitacora = Bitacora(
-            modulo=Modulo.query.filter_by(nombre=MODULO).first(),
-            usuario=current_user,
-            descripcion=safe_message(f"Eliminado Usuario {usuario.email}"),
-            url=url_for("usuarios.detail", usuario_id=usuario.id),
-        )
-        bitacora.save()
-        flash(bitacora.descripcion, "success")
-    return redirect(url_for("usuarios.detail", usuario_id=usuario.id))
-
-
-@usuarios.route("/usuarios/recuperar/<int:usuario_id>")
-@login_required
-@permission_required(MODULO, Permiso.ADMINISTRAR)
-def recover(usuario_id):
-    """Recuperar Usuario"""
-    usuario = Usuario.query.get_or_404(usuario_id)
-    if usuario.estatus == "B":
-        # Recuperar al usuario
-        usuario.recover()
-        # Recuperar los roles del usuario
-        for usuario_rol in usuario.usuarios_roles:
-            usuario_rol.recover()
-        # Guardar en la bitacora
-        bitacora = Bitacora(
-            modulo=Modulo.query.filter_by(nombre=MODULO).first(),
-            usuario=current_user,
-            descripcion=safe_message(f"Recuperado Usuario {usuario.email}"),
-            url=url_for("usuarios.detail", usuario_id=usuario.id),
-        )
-        bitacora.save()
-        flash(bitacora.descripcion, "success")
-    return redirect(url_for("usuarios.detail", usuario_id=usuario.id))

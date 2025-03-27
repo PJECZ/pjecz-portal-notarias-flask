@@ -18,7 +18,7 @@ class UsuarioRolNewWithRolForm(FlaskForm):
     guardar = SubmitField("Guardar")
 
     def __init__(self, *args, **kwargs):
-        """Inicializar y cargar opciones para rol"""
+        """Inicializar y cargar opciones en usuario"""
         super().__init__(*args, **kwargs)
         self.usuario.choices = [(u.id, u.email) for u in Usuario.query.filter_by(estatus="A").order_by(Usuario.email).all()]
 
@@ -33,6 +33,6 @@ class UsuarioRolNewWithUsuarioForm(FlaskForm):
     guardar = SubmitField("Guardar")
 
     def __init__(self, *args, **kwargs):
-        """Inicializar y cargar opciones para rol"""
+        """Inicializar y cargar opciones en rol"""
         super().__init__(*args, **kwargs)
         self.rol.choices = [(r.id, r.nombre) for r in Rol.query.filter_by(estatus="A").order_by(Rol.nombre).all()]

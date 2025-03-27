@@ -2,6 +2,8 @@
 Bitácoras
 """
 
+import json
+
 from flask import Blueprint, render_template, request, url_for
 from flask_login import current_user, login_required
 
@@ -32,8 +34,8 @@ def datatable_json():
     draw, start, rows_per_page = get_datatable_parameters()
     # Consultar
     consulta = Bitacora.query
-    # Solo los modulos en Portal Notarias
-    consulta = consulta.join(Modulo).filter(Modulo.en_portal_notarias == True)
+    # Solo los modulos en Plataforma Can Mayor
+    consulta = consulta.join(Modulo).filter(Modulo.en_plataforma_portal_notarias == True)
     # Primero filtrar por columnas propias
     if "estatus" in request.form:
         consulta = consulta.filter(Bitacora.estatus == request.form["estatus"])
@@ -63,7 +65,7 @@ def datatable_json():
     for resultado in registros:
         data.append(
             {
-                "creado": resultado.creado.strftime("%Y-%m-%d %H:%M:%S"),
+                "creado": resultado.creado.strftime("%Y-%m-%dT%H:%M:%S"),
                 "usuario": {
                     "email": resultado.usuario.email,
                     "url": (
@@ -87,4 +89,20 @@ def datatable_json():
 @bitacoras.route("/bitacoras")
 def list_active():
     """Listado de Bitácoras activas"""
-    return render_template("bitacoras/list.jinja2")
+    # Valores por defecto
+    filtros = {"estatus": "A"}
+    titulo = "Bitácoras"
+    # Si viene usuario_id en la URL, agregar a los filtros
+    try:
+        usuario_id = int(request.args.get("usuario_id"))
+        usuario = Usuario.query.get_or_404(usuario_id)
+        filtros = {"estatus": "A", "usuario_id": usuario_id}
+        titulo = f"Bitácoras de {usuario.nombre}"
+    except (TypeError, ValueError):
+        pass
+    # Entregar
+    return render_template(
+        "bitacoras/list.jinja2",
+        filtros=json.dumps(filtros),
+        titulo=titulo,
+    )

@@ -8,13 +8,6 @@
 {% block topbar_actions %}
     {% call topbar.page_buttons('Módulo ' + modulo.nombre) %}
         {{ topbar.button_previous('Módulos', url_for('modulos.list_active')) }}
-        {% if current_user.can_edit('MODULOS') %}
-            {{ topbar.button_edit('Editar', url_for('modulos.edit', modulo_id=modulo.id)) }}
-        {% endif %}
-        {% if current_user.can_admin('MODULOS') %}
-            {% if modulo.estatus == 'A' %}{{ topbar.button_delete('Eliminar', url_for('modulos.delete', modulo_id=modulo.id)) }}{% endif %}
-            {% if modulo.estatus == 'B' %}{{ topbar.button_recover('Recuperar', url_for('modulos.recover', modulo_id=modulo.id)) }}{% endif %}
-        {% endif %}
     {% endcall %}
 {% endblock %}
 
@@ -24,14 +17,15 @@
         {{ detail.label_value('Icono', modulo.icono) }}
         {{ detail.label_value('Ruta', modulo.ruta) }}
         {{ detail.label_value_boolean('En menú de navegación', modulo.en_navegacion) }}
+        {{ detail.label_value_boolean('En Plataforma Can Mayor', modulo.en_plataforma_portal_notarias) }}
         {{ detail.label_value_boolean('En Plataforma Carina', modulo.en_plataforma_carina) }}
         {{ detail.label_value_boolean('En Plataforma Hércules', modulo.en_plataforma_hercules) }}
         {{ detail.label_value_boolean('En Plataforma Web', modulo.en_plataforma_web) }}
         {{ detail.label_value_boolean('En Portal de Notarías', modulo.en_portal_notarias) }}
-        {# detail.label_value('Creado', moment(modulo.creado).format('llll')) #}
     {% endcall %}
     {% if current_user.can_view('PERMISOS') %}
         {% call detail.card('Permisos') %}
+            <!-- Datatable Permisos -->
             <table id="permisos_datatable" class="table display nowrap" style="width:100%">
                 <thead>
                     <tr>
@@ -40,29 +34,27 @@
                     </tr>
                 </thead>
             </table>
-            {% if current_user.can_insert('PERMISOS') %}
-            <a href="{{ url_for('permisos.new_with_modulo', modulo_id=modulo.id) }}" class="btn btn-primary">Agregar</a>
-            {% endif %}
         {% endcall %}
     {% endif %}
 {% endblock %}
 
 {% block custom_javascript %}
-    {% if current_user.can_admin('MODULOS') %}
-        {% if modulo.estatus == 'A' %}{{ modals.custom_javascript_delete('Eliminar', '¿Eliminar a ' + modulo.nombre + '?') }}{% endif %}
-        {% if modulo.estatus == 'B' %}{{ modals.custom_javascript_recover('Recuperar', '¿Recuperar a ' + modulo.nombre + '?') }}{% endif %}
-    {% endif %}
-    {{ detail.moment_js(moment) }}
-    {{ detail.config_datatable() }}
+    <script src="/static/js/datatables-constructor.js"></script>
+    <script src="/static/js/datatables-filtros.js"></script>
+    <script>
+        const constructorDataTable = new ConfigDataTable( '{{ csrf_token() }}' );
+    </script>
     {% if current_user.can_view('PERMISOS') %}
         <script>
-            configDataTable['ajax']['url'] = '/permisos/datatable_json';
-            configDataTable['ajax']['data'] = { 'estatus': "A", 'modulo_id': {{ modulo.id}} };
-            configDataTable['columns'] = [
+            // DataTable Permisos
+            let configDTPermisos = constructorDataTable.config();
+            configDTPermisos['ajax']['url'] = '/permisos/datatable_json';
+            configDTPermisos['ajax']['data'] = { 'estatus': "A", 'modulo_id': {{ modulo.id}} };
+            configDTPermisos['columns'] = [
                 { data: "detalle" },
                 { data: "rol" }
             ];
-            configDataTable['columnDefs'] = [
+            configDTPermisos['columnDefs'] = [
                 {
                     targets: 0, // detalle
                     data: null,
@@ -82,7 +74,9 @@
                     }
                 }
             ];
-            $('#permisos_datatable').DataTable(configDataTable);
+            // Filtros Permisos
+            const filtrosDTPermisos = new FiltrosDataTable('#permisos_datatable', configDTPermisos);
+            filtrosDTPermisos.precargar();
         </script>
     {% endif %}
 {% endblock %}
