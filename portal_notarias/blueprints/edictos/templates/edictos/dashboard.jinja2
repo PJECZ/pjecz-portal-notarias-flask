@@ -19,7 +19,7 @@
     {# DataTableEdictos #}
     {% call card.card() %}
         {% call card.card_body() %}
-            <table id="edictos_datatable" class="table display nowrap" style="width:100%">
+            <table id="edictos_datatable" class="table {% if estatus == 'B' %}table-dark{% endif %} display nowrap" style="width:100%">
                 <thead>
                     <tr>
                         <th>Fecha</th>
@@ -40,79 +40,63 @@
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/datatables-buttons/2.4.1/js/dataTables.buttons.min.js"></script>
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/datatables-buttons/2.4.1/js/buttons.html5.min.js"></script>
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/datatables-buttons/2.4.1/js/buttons.print.min.js"></script>
-    <!-- DataTable Listas De Acuerdos -->
+    
+    <script src="/static/js/datatables-constructor.js"></script>
+    <script src="/static/js/datatables-filtros.js"></script>
     <script>
-        $('#edictos_datatable').DataTable({
-            dom: 'Bfrtip',
-            buttons: [
-                { extend: 'copy', text: 'Copiar' },
-                { extend: 'csvHtml5', text: 'Descargar CSV' },
-                { extend: 'excelHtml5', text: 'Descargar XLSX' }
-            ],
-            pageLength: 500,
-            processing: true,
-            serverSide: true,
-            searching: false,
-            responsive: true,
-            scrollX: true,
-            ajax: {
-                url: "/edictos/datatable_json",
-                type: "POST",
-                headers: { "X-CSRF-TOKEN": "{{ csrf_token() }}" },
-                dataType: "json",
-                dataSrc: "data",
-                data: {{ filtros }}
+        // Definir el constructor para DataTables
+        const constructorDataTable = new ConfigDataTable( '{{ csrf_token() }}' );
+    </script>
+    <!-- DataTable Edictos -->
+    <script>
+        // DataTable Edictos
+        let configDTEdictos = constructorDataTable.config();
+        configDTEdictos['dom'] = 'Bfrtip';
+        configDTEdictos['buttons'] = [
+            { extend: 'copy', text: 'Copiar' },
+            { extend: 'csvHtml5', text: 'Descargar CSV' },
+            { extend: 'excelHtml5', text: 'Descargar XLSX' }
+        ];
+        configDTEdictos['ajax']['url'] = '/edictos/datatable_json';
+        configDTEdictos['ajax']['data'] =  {{ filtros }};
+        configDTEdictos['columns'] = [
+            { data: "fecha" },
+            { data: "detalle" },
+            { data: "numero_publicacion" },
+            { data: "archivo" },
+        ];
+        configDTEdictos['columnDefs'] = [
+            {
+                targets: 0, // fecha
+                data: null,
+                render: function(data, type, row, meta) {
+                    return moment(data).format("DD MMM YYYY");
+                }
             },
-            columns: [
-                { data: "fecha" },
-                { data: "detalle" },
-                { data: "numero_publicacion" },
-                { data: "archivo" },
-            ],
-            ordering: false,
-            columnDefs: [
-                {
-                    targets: 0, // fecha
-                    data: null,
-                    render: function(data, type, row, meta) {
-                        return moment(data).format("DD MMM YYYY");
-                    }
-                },
-                {
-                    targets: 1, // descripcion (detalle)
-                    data: null,
-                    render: function(data, type, row, meta) {
-                        var descripcion = data.descripcion.length > 80 ? data.descripcion.substr(0, 80) + '…' : data.descripcion;
-                        var content = data.url ? '<a href="' + data.url + '">' + descripcion + '</a>' : descripcion;
-                        if (data.url) {
-                            return '<span title="' + descripcion + '">' + content + '</span>';
-                        } else {
-                            return descripcion;
-                        }
-                    }
-                },
-                {
-                    targets: 3, // descargar_url "URL Descarga pública"
-                    data: null,
-                    render: function(data, type, row, meta) {
-                        return '<a href="' + data.descargar_url + '" target="_blank">' + data.descargar_url +'</a>';
+            {
+                targets: 1, // descripcion (detalle)
+                data: null,
+                render: function(data, type, row, meta) {
+                    var descripcion = data.descripcion.length > 80 ? data.descripcion.substr(0, 80) + '…' : data.descripcion;
+                    var content = data.url ? '<a href="' + data.url + '">' + descripcion + '</a>' : descripcion;
+                    if (data.url) {
+                        return '<span title="' + descripcion + '">' + content + '</span>';
+                    } else {
+                        return descripcion;
                     }
                 }
-            ],
-            language: {
-                lengthMenu: "Mostrar _MENU_",
-                search: "Filtrar:",
-                zeroRecords: "No se encontraron registros",
-                info: "Total de registros _TOTAL_ ",
-                infoEmpty: "No hay registros",
-                infoFiltered: "(_TOTAL_ filtrados de _MAX_ registros)",
-                oPaginate: {
-                    sFirst: "Primero",
-                    sLast: "Último",
-                    sNext: "Siguiente",
-                    sPrevious: "Anterior"
+            },
+            {
+                targets: 3, // descargar_url "URL Descarga pública"
+                data: null,
+                render: function(data, type, row, meta) {
+                    return '<a href="' + data.descargar_url + '" target="_blank">' + data.descargar_url +'</a>';
                 }
             }
-        });
+        ];
+        // Filtros Edictos 
+        const filtrosEdictos = new FiltrosDataTable('#edictos_datatable', configDTEdictos);
+        filtrosEdictos.agregarInput('filtroEdictosDescripcion', 'descripcion');
+        filtrosEdictos.precargar();
     </script>
 {% endblock %}
