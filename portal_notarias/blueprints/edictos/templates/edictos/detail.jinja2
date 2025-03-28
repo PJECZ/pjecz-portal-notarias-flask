@@ -76,7 +76,7 @@
                     <tr>
                         <th>Fecha de publicación</th>
                         <th>Descripción del edicto</th>
-                        <th>Archivo</th>
+                        <th>Acuse</th>
                     </tr>
                 </thead>
             </table>
@@ -127,7 +127,7 @@
                     data: null,
                     render: function(data, type, row, meta) {
                         if(data.length > 32)
-                            return '<span title="' + data + '">' + data.substr(0, 32) + '…'  + '</span>';
+                            return '<span title="' + data + '"><span title="' + data + '">' + data.substr(0, 32) + '…'  + '</span>';
                         return data;
                     }
                 },

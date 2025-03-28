@@ -31,6 +31,8 @@ class EdictoNewForm(FlaskForm):
 class EdictoEditForm(FlaskForm):
     """Formulario EdictoEdit"""
 
+    distrito = StringField("Distrito")  # Read only
+    autoridad = StringField("Autoridad")  # Read only
     fecha_acuse_1 = DateField("Publicación 1", render_kw={"readonly": True}, validators=[Optional()])  # Deshabilitado
     fecha_acuse_2 = DateField("Publicación 2", validators=[Optional()])
     fecha_acuse_3 = DateField("Publicación 3", validators=[Optional()])

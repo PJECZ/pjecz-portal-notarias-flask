@@ -456,7 +456,6 @@ def new():
         edicto.save()
 
     # Prellenado de los campos
-
     form.distrito.data = autoridad.distrito.nombre
     form.autoridad.data = autoridad.descripcion
     hoy_date = datetime.today().date()
@@ -550,6 +549,8 @@ def edit(edicto_id):
         return redirect(bitacora.url)
 
     # Pre-llenar el formulario con los datos del edicto y los acuses
+    form.distrito.data = autoridad.distrito.nombre
+    form.autoridad.data = autoridad.descripcion
     form.descripcion.data = edicto.descripcion
     for i, acuse in enumerate(acuses):
         if i + 2 <= 5:  # Asegurarse de que no exceda el número de campos de fecha en el formulario
