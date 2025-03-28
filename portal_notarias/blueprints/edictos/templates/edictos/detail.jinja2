@@ -35,30 +35,48 @@
 
 {% block content %}
     {% call detail.card(estatus=edicto.estatus) %}
-        {{ detail.label_value('Descripción', edicto.descripcion) }}
         {{ detail.label_value('Distrito', edicto.autoridad.distrito.nombre) }}
         {{ detail.label_value('Notaria', edicto.autoridad.descripcion) }}
+        {{ detail.label_value('Descripción', edicto.descripcion) }}
         {{ detail.label_value('Número de publicación', edicto.numero_publicacion) }}
         {{ detail.label_value('Veces a publicar', edicto.acuse_num) }}
         {{ detail.label_value('Fecha de publicación', edicto.fecha) }}
         <div class="row mt-2">
             <div class="col-md-6">
-                {{ detail.button_md('Enlace público para descargar PDF', edicto.descargar_url, 'mdi:web', '_blank') }}
+                {{ detail.button_md('Enlace público para descargar PDF', edicto.descargar_url, 'mdi:download', '_blank') }}
             </div>
             <div class="col-md-6">
-                {{ detail.button_md('Ver el Acuse', url_for('edictos.checkout', id_hashed=edicto.encode_id()), 'mdi:eye', '_blank') }}
+                {{ detail.button_md('Ver Acuse', url_for('edictos.checkout', id_hashed=edicto.encode_id()), 'mdi:eye', '_blank') }}
             </div>
         </div>
     {% endcall %}
     {# Listado de acuses #}
-    {% if current_user.can_view('EDICTOS ACUSES') %}
-        {% call detail.card('Publicaciones' ) %}
+     {% if current_user.can_view('EDICTOS ACUSES') %}
+        {% call detail.card('Publicaciones') %}
+            <!-- Filtros EdictosAcuses -->
+            <div class="row">
+                <div class="col">
+                    <form class="row g-1 mb-3" id="filtradorForm" onsubmit="filtrosEdictosAcuses.buscar(); return false;">
+                        <div class="col-6">
+                            <div class="form-floating">
+                                <input id="filtroEdictosAcusesDescripcion" type="text" class="form-control" aria-label="Descripción" style="text-transform: uppercase;">
+                                <label for="filtroEdictosAcusesDescripcion">Descripción</label>
+                            </div>
+                        </div>
+                        <div class="col-6 text-end">
+                            <button title="Buscar" class="btn btn-primary btn-lg" onclick="filtrosEdictosAcuses.buscar(); return false;" id="button-buscar"><span class="iconify" data-icon="mdi:magnify"></span></button>
+                            <button title="Limpiar" class="btn btn-warning btn-lg" type="reset" onclick="filtrosEdictosAcuses.limpiar();" id="button-limpiar"><span class="iconify" data-icon="mdi:broom"></span></button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <!-- DataTable EdictosAcuses -->
             <table id="edictos_acuses_datatable" class="table display nowrap" style="width:100%">
                 <thead>
                     <tr>
                         <th>Fecha de publicación</th>
                         <th>Descripción del edicto</th>
-                        <th>Archivo</th>
+                        <th>Acuse</th>
                     </tr>
                 </thead>
             </table>
@@ -72,7 +90,6 @@
 {% endblock %}
 
 {% block custom_javascript %}
-    {{ detail.config_datatable() }}
     {# Los usuarios que pueden insertar registros tienen permiso para eliminar y recuperar #}
     {% set descrito = 'el edicto del ' + edicto.fecha.strftime("%Y-%m-%d") + ' de ' + edicto.autoridad.descripcion_corta %}
     {% if current_user.can_insert('EDICTOS') %}
@@ -80,16 +97,24 @@
         {% if edicto.estatus == 'B' %}{{ modals.custom_javascript_recover('Recuperar', '¿Recuperar ' + descrito + '?') }}{% endif %}
     {% endif %}
 
+    <script src="/static/js/datatables-constructor.js"></script>
+    <script src="/static/js/datatables-filtros.js"></script>
+    <script>
+        // Definir el constructor para DataTables
+        const constructorDataTable = new ConfigDataTable( '{{ csrf_token() }}' );
+    </script>
     {% if current_user.can_view('EDICTOS ACUSES') %}
         <script>
-            configDataTable['ajax']['url'] = '/edictos_acuses/datatable_json';
-            configDataTable['ajax']['data'] = { 'estatus': "A", 'edicto_id': {{ edicto.id}} };
-            configDataTable['columns'] = [
+            // DataTable Edictos Acuses
+            let configDTEdictosAcuses = constructorDataTable.config();
+            configDTEdictosAcuses['ajax']['url'] = '/edictos_acuses/datatable_json';
+            configDTEdictosAcuses['ajax']['data'] = { 'estatus': "A", 'edicto_id': {{ edicto.id}} };
+            configDTEdictosAcuses['columns'] = [
                 { data: 'detalle' },
                 { data: 'edicto_descripcion' },
                 { data: 'acuse_recepcion' },
             ];
-            configDataTable['columnDefs'] = [
+            configDTEdictosAcuses['columnDefs'] = [
                 {
                     targets: 0, // detalle
                     data: null,
@@ -102,7 +127,7 @@
                     data: null,
                     render: function(data, type, row, meta) {
                         if(data.length > 32)
-                            return '<span title="' + data + '">' + data.substr(0, 32) + '…'  + '</span>';
+                            return '<span title="' + data + '"><span title="' + data + '">' + data.substr(0, 32) + '…'  + '</span>';
                         return data;
                     }
                 },
@@ -111,16 +136,18 @@
                     data: null,
                     render: function(data, type, row, meta) {
                         if(data === "No disponible"){
-                            return '<span class="disabled-link">Acuse recepción</span>'
+                            return '<span class="disabled-link">Se mostrará hasta la fecha de publicación</span>'
                         }else{
-                            return '<a href="' + data + '" target="_blank">Acuse recepción</a>';
+                            return '<a href="' + data + '" target="_blank">Ver acuse recepción</a>';
                         }
                     }
 
                 }
             ];
-            $('#edictos_acuses_datatable').DataTable(configDataTable);
+            // Filtros Edictos Acuses
+            const filtrosEdictosAcuses = new FiltrosDataTable('#edictos_acuses_datatable', configDTEdictosAcuses);
+            filtrosEdictosAcuses.agregarInput('filtroEdictosAcusesDescripcion', 'descripcion');
+            filtrosEdictosAcuses.precargar();
         </script>
     {% endif %}
-    {# {{ detail.moment_js(moment) }} #}
 {% endblock %}
