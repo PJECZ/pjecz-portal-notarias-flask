@@ -10,8 +10,10 @@ from wtforms.validators import DataRequired, Length, Optional
 class EdictoNewForm(FlaskForm):
     """Formulario para nuevo Edicto para Notaria"""
 
+    distrito = StringField("Distrito")  # Read only
+    autoridad = StringField("Autoridad")  # Read only
     acuse_num = RadioField(
-        "Cantidad de veces a publicar",
+        "1. Elija la cantidad de veces a publicar (para más de una vez elija las fechas futuras): ",
         coerce=int,
         choices=[("1", "1 vez"), ("2", "2 veces"), ("3", "3 veces"), ("4", "4 veces"), ("5", "5 veces")],
         validators=[DataRequired()],
@@ -21,10 +23,8 @@ class EdictoNewForm(FlaskForm):
     fecha_acuse_3 = DateField("Publicación 3", validators=[Optional()])
     fecha_acuse_4 = DateField("Publicación 4", validators=[Optional()])
     fecha_acuse_5 = DateField("Publicación 5", validators=[Optional()])
-    descripcion = StringField("Descripción", validators=[DataRequired(), Length(max=256)])
-    distrito = StringField("Distrito")  # Read only
-    autoridad = StringField("Autoridad")  # Read only
-    archivo = FileField("Adjuntar archivo en formato (.PDF)", validators=[Optional()])
+    descripcion = StringField("2. Escriba una breve descripción", validators=[DataRequired(), Length(max=256)])
+    archivo = FileField("3. Adjuntante el archivo PDF con el Edicto:", validators=[Optional()])
     guardar = SubmitField("Guardar")
 
 
