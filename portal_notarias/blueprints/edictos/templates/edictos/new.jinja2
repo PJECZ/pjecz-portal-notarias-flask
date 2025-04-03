@@ -13,16 +13,19 @@
 {% endblock %}
 
 {% block topbar_actions %}
-    {{ topbar.page('Publicación de Edicto para ' + current_user.autoridad.descripcion_corta) }}
+    {{ topbar.page('Subir publicación de Edicto ') }}
 {% endblock %}
 
 {% block content %}
     {% call f.card() %}
         {% call f.form_tag_multipart('edictos.new', fid='edicto_form') %}
+            {% call f.form_group(form.distrito, readonly=true) %}{% endcall %}
+            {% call f.form_group(form.autoridad, readonly=true) %}{% endcall %}
             <div class="alert alert-info" role="alert">
-                <b> AVISO:</b> Las fechas que seleccione serán la base para las republicaciones y el calendario de publicaciones. Asegúrese de elegir las fechas correctas.
+                <strong>Instrucciones:</strong> Para publicar un edicto, complete los campos requeridos y seleccione la opción de cuántas veces desea publicar. 
             </div>
             {% call f.form_group(form.acuse_num, css_class="radiobutton_inline mi_acuse") %}{% endcall %}
+            <p class="fw-bold text-decoration-underline">Las fechas que seleccione serán la base para las siguientes publicaciones.</p>
             <div id="fecha_acuse_container_1" class="fecha-acuse" style="display: none;">
                 <label for="fecha_acuse_1" class="fecha-acuse-titulo" style="display: none;">Primera publicación</label>
                 <input type="date" class="form-control" id="fecha_acuse_1" name="fecha_acuse_1" value="{{ form.fecha_acuse_1.data }}" disabled>

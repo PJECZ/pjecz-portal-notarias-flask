@@ -27,9 +27,9 @@
         <div>
             <p>
                 {% if fecha_del_acuse %}
-                Fecha {{ fecha_del_acuse.strftime('%Y-%m-%d %H:%M') }}<br>
+                    Fecha {{ fecha_del_acuse }}<br>
                 {% else %}
-                Fecha {{ dia }}/{{ mes }}/{{ anio }}<br>
+                    Fecha {{ anio }}-{{ mes }}-{{ dia }}<br>
                 {% endif %}
                 ID VPE{{ edicto.id }}<br>
                 <strong>{{ edicto.autoridad.descripcion }}</strong><br>

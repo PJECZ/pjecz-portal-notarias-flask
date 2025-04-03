@@ -10,6 +10,16 @@ body {
   background-color: #eee;
 }
 
+.btn-outline-primary {
+  color: #6b2594 !important;
+  border-color: #6b2594 !important;
+}
+
+.btn-outline-primary:hover {
+  color: #fff !important;
+  background-color: #6b2594 !important;
+  border-color: #6b2594 !important;
+}
 /* Google Fonts Roboto */
 
 .roboto-regular {
