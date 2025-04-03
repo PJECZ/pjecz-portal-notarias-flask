@@ -126,8 +126,8 @@ def datatable_json():
         detalle = {
             "descripcion": resultado.descripcion,
         }
-        # Verificar si 'edicto_id_original' es igual a 0
-        if resultado.edicto_id_original == 0:
+        # Verificar si 'edicto_id_original' es igual a 0 o es igual al id del edicto
+        if resultado.edicto_id_original in {0, resultado.id}:
             # Si es igual a 0, agregar la URL al diccionario
             detalle["url"] = url_for("edictos.detail", edicto_id=resultado.id)
         data.append(
