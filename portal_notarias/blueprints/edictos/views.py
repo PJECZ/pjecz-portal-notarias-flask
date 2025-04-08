@@ -30,7 +30,6 @@ from portal_notarias.blueprints.usuarios.decorators import permission_required
 
 from portal_notarias.blueprints.autoridades.models import Autoridad
 from portal_notarias.blueprints.bitacoras.models import Bitacora
-from portal_notarias.blueprints.distritos.models import Distrito
 from portal_notarias.blueprints.modulos.models import Modulo
 from portal_notarias.blueprints.permisos.models import Permiso
 from portal_notarias.blueprints.edictos.models import Edicto
@@ -439,12 +438,12 @@ def new():
             edicto.archivo = gcstorage.filename
             edicto.url = gcstorage.url
             edicto.save()
-            piezas = ["Nuevo edicto"]
-            piezas.append(f"fecha {edicto.fecha.strftime('%Y-%m-%d')} de {edicto.autoridad.clave}")
             bitacora = Bitacora(
                 modulo=Modulo.query.filter_by(nombre=MODULO).first(),
                 usuario=current_user,
-                descripcion=safe_message(" ".join(piezas)),
+                descripcion=safe_message(
+                    f"Portal de Notarías nuevo edicto de {edicto.autoridad.clave} sobre {edicto.descripcion[:16]}"
+                ),
                 url=url_for("edictos.detail", edicto_id=edicto.id),
             )
             bitacora.save()
@@ -541,7 +540,9 @@ def edit(edicto_id):
         bitacora = Bitacora(
             modulo=Modulo.query.filter_by(nombre=MODULO).first(),
             usuario=current_user,
-            descripcion=safe_message(f"Edicto {edicto.descripcion} actualizado."),
+            descripcion=safe_message(
+                f"Portal de Notarías editar edicto de {edicto.autoridad.clave} sobre {edicto.descripcion[:16]}"
+            ),
             url=url_for("edictos.detail", edicto_id=edicto.id),
         )
         bitacora.save()
@@ -599,7 +600,9 @@ def delete(edicto_id):
         bitacora = Bitacora(
             modulo=Modulo.query.filter_by(nombre=MODULO).first(),
             usuario=current_user,
-            descripcion=safe_message(f"Eliminado Edicto {edicto.descripcion}"),
+            descripcion=safe_message(
+                f"Portal de Notarías eliminar edicto de {edicto.autoridad.clave} sobre {edicto.descripcion[:16]}"
+            ),
             url=detalle_url,
         )
         bitacora.save()
@@ -628,8 +631,9 @@ def recover(edicto_id):
         return redirect(detalle_url)
 
     # Definir la descripción para la bitácora
-    fecha_y_autoridad = f"{edicto.fecha.strftime('%Y-%m-%d')} de {edicto.autoridad.clave}"
-    descripcion = safe_message(f"Recuperado Edicto del {fecha_y_autoridad} por {current_user.email}")
+    descripcion = safe_message(
+        f"Portal de Notarías recuperar edicto de {edicto.autoridad.clave} sobre {edicto.descripcion[:16]}"
+    )
 
     # Si es administrador, puede recuperar
     if current_user.can_admin(MODULO):

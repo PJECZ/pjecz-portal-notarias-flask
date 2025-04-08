@@ -54,9 +54,9 @@ fi
 
 if command -v figlet &> /dev/null
 then
-    figlet Portal Notarias
+    figlet Portal de Notarias
 else
-    echo "== Portal Notarias"
+    echo "== Portal de Notarias"
 fi
 echo
 

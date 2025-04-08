@@ -16,9 +16,7 @@ from config.firebase import get_firebase_settings
 from lib.datatables import get_datatable_parameters, output_datatable_json
 from lib.safe_next_url import safe_next_url
 from lib.safe_string import CONTRASENA_REGEXP, EMAIL_REGEXP, TOKEN_REGEXP, safe_email, safe_string
-from portal_notarias.blueprints.bitacoras.models import Bitacora
 from portal_notarias.blueprints.entradas_salidas.models import EntradaSalida
-from portal_notarias.blueprints.modulos.models import Modulo
 from portal_notarias.blueprints.permisos.models import Permiso
 from portal_notarias.blueprints.usuarios.decorators import anonymous_required, permission_required
 from portal_notarias.blueprints.usuarios.forms import AccesoForm
@@ -96,7 +94,7 @@ def login():
         "usuarios/login.jinja2",
         form=form,
         firebase_settings=firebase_settings,
-        title="Portal Notarías",
+        title="Portal de Notarías",
     )
 
 
