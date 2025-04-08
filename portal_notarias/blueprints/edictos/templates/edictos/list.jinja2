@@ -18,6 +18,7 @@
         {% else %}
             {{ topbar.button_dashboard('Tablero', url_for('edictos.dashboard')) }}
         {% endif %}
+        {{ topbar.button_manual('Manual', 'https://www.justiciadigital.gob.mx/portal_notarias/edictos') }}
     {% endcall %}
 {% endblock %}
 

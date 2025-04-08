@@ -69,7 +69,7 @@
     {% endif %}
     <!-- Publicaciones de todas las notarias -->
     {% if mostrar_notaria %}
-        {% call detail.card(title='Edictos publicados por otras notarías') %}
+        {% call detail.card(title='Edictos publicados hoy por otras entidades') %}
             {% if edictos_dia_lista %}
                 {% call card.container_row() %}
                     {% for edicto_id, fecha, descripcion, autoridad_clave, cantidad in edictos_dia_lista %}

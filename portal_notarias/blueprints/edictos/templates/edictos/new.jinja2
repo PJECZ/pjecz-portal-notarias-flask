@@ -13,7 +13,9 @@
 {% endblock %}
 
 {% block topbar_actions %}
-    {{ topbar.page('Subir publicación de Edicto ') }}
+    {% call topbar.page_buttons('Subir publicación de Edicto ') %}
+       {{ topbar.button_manual('Manual', 'https://www.justiciadigital.gob.mx/portal_notarias/edictos') }}
+    {% endcall %}
 {% endblock %}
 
 {% block content %}
