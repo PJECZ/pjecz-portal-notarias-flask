@@ -5,7 +5,9 @@
 {% block title %}Editar Edicto {{ edicto.descripcion }}{% endblock %}
 
 {% block topbar_actions %}
-    {{ topbar.page('Editar ' + edicto.descripcion) }}
+    {% call topbar.page_buttons('Editar Edicto ' + edicto.descripcion) %}
+        {{ topbar.button_manual('Manual', 'https://www.justiciadigital.gob.mx/portal_notarias/edictos') }}
+    {% endcall %}
 {% endblock %}
 
 {% block content %}

@@ -9,8 +9,6 @@ from flask_login import login_required
 
 from lib.datatables import get_datatable_parameters, output_datatable_json
 
-# from portal_notarias.blueprints.bitacoras.models import Bitacora
-# from portal_notarias.blueprints.modulos.models import Modulo
 from portal_notarias.blueprints.permisos.models import Permiso
 from portal_notarias.blueprints.usuarios.decorators import permission_required
 from portal_notarias.blueprints.edictos_acuses.models import EdictoAcuse

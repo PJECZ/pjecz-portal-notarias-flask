@@ -30,6 +30,7 @@
             {% if edicto.estatus == 'A' %}{{ topbar.button_delete('Eliminar', url_for('edictos.delete', edicto_id=edicto.id)) }}{% endif %}
             {% if edicto.estatus == 'B' %}{{ topbar.button_recover('Recuperar', url_for('edictos.recover', edicto_id=edicto.id)) }}{% endif %}
         {% endif %}
+        {{ topbar.button_manual('Manual', 'https://www.justiciadigital.gob.mx/portal_notarias/edictos') }}
     {% endcall %}
 {% endblock %}
 
